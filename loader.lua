@@ -9,8 +9,8 @@ if Success then
     local Data = HttpService:JSONDecode(Response)
     local PlaceId = tostring(game.PlaceId)
     
-    if Data.Games and Data.Games[PlaceId] then
-        local ScriptUrl = Data.Games[PlaceId]
+    if Data.games and Data.games[PlaceId] then
+        local ScriptUrl = Data.games[PlaceId]
         print("Loading Script For Game ID:", PlaceId)
         
         local ScriptSuccess, ScriptResponse = pcall(function()
