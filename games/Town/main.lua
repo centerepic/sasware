@@ -5,11 +5,19 @@ local Region = loadstring(game:HttpGet("https://github.com/centerepic/PCV3/raw/r
 
 if hookfunction then
 	local Success = pcall(function()
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua",true))()
 		local LogService = game:GetService("LogService")
 		local Offset = math.random(1, workspace.DistributedGameTime)
 		local OldGetLogHistory; OldGetLogHistory = hookfunction(LogService.GetLogHistory, function(...)
 			if checkcaller() then return OldGetLogHistory(...) end
+
+			local Success, _ = pcall(OldGetLogHistory, ...)
+
+			if not Success then
+				-- print("Check averted.")
+				-- print(Error, ...)
+				return OldGetLogHistory(...)
+			end
+
 			return {
 				{
 					message = "JointsService is deprecated, but an instance was added to JointsService: JointsService.Weld",
@@ -33,10 +41,10 @@ end
 local game = game :: DataModel -- FAAAAAAAAAAAA YOUUUUUUUUUUUUUUU
 local CallQueueFlushRate = 1 / 20
 local MaxPartsPerCloneCall = 499
-local MaxPartsPerMoveCall = 1000
-local MaxPartsPerColorCall = 2000
-local MaxPartsPerMaterialCall = 2000
-local MaxPartsPerResizeCall = 2000
+local MaxPartsPerMoveCall = 4000
+local MaxPartsPerColorCall = 4000
+local MaxPartsPerMaterialCall = 4000
+local MaxPartsPerResizeCall = 4000
 local IgnoreEmptyGroups = true
 
 -- FakePart is a client-side part that is used to replicate part properties to the server
@@ -237,6 +245,10 @@ function Utility.GetDepthFromAncestor(Item: Instance, Ancestor: Instance): numbe
 	return Depth
 end
 
+function Utility.IsCooling() : boolean
+	return LocalPlayer:FindFirstChild("BuildCooling")
+end
+
 --#endregion
 
 --#region Queue
@@ -253,6 +265,13 @@ function Queue:Enqueue(CallType: string, Arguments: { any })
 	return Callback.Event:Wait()
 end
 
+function Queue:EnqueueNoRet(CallType: string, Arguments: { any })
+	local Callback = Instance.new("BindableEvent")
+	Callback.Name = "NoRet"
+	table.insert(CallQueue, { Callback, CallType, Arguments })
+	return Callback.Event:Wait()
+end
+
 function Queue:Step()
 	if #CallQueue == 0 then
 		return
@@ -265,11 +284,35 @@ function Queue:Step()
 
 		if Call then
 			local Callback: BindableEvent, CallType: string, Arguments: { any } = unpack(Call)
+			
+			local NoRet = ((not Callback) or Callback.Name == "NoRet")
+
+			local Ret
+			local Success
+			local Error
+
+			repeat task.wait() until not Utility.IsCooling()
+
+			repeat
+				Success, Error = pcall(function()
+					if NoRet then
+						SyncEndpoint:InvokeServer(CallType, unpack(Arguments))
+					else
+						Ret = {SyncEndpoint:InvokeServer(CallType, unpack(Arguments))}
+					end
+				end)
+				if not Success then
+					warn("Failed to invoke server, retrying...", Error)
+					task.wait(1)
+				end
+			until Success and Ret and type(Ret) == "table"
 
 			if Callback then
-				Callback:Fire(SyncEndpoint:InvokeServer(CallType, unpack(Arguments)))
-			else
-				SyncEndpoint:InvokeServer(CallType, unpack(Arguments))
+				if NoRet then
+					Callback:Fire()
+				else
+					Callback:Fire(unpack(Ret))
+				end
 			end
 		end
 	end
@@ -571,7 +614,7 @@ do
 		Root.BackgroundTransparency = 0.900
 		Root.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		Root.BorderSizePixel = 0
-		Root.Position = UDim2.new(0.5, 0, 0, 20)
+		Root.Position = UDim2.new(0.5, 0, 0, 60)
 		Root.Size = UDim2.new(0, 500, 0, 20)
 
 		Bar.Name = "Bar"
@@ -808,7 +851,7 @@ function Building.TypeFromReference(Reference: FakeBasePart)
 		["WedgePart"] = "Wedge",
 		["TrussPart"] = "Truss",
 		["Seat"] = "Seat",
-		["VehicleSeat"] = "VehicleSeat",
+		["VehicleSeat"] = "Vehicle Seat",
 	}
 
 	local ShapeTypeReference = {
@@ -830,11 +873,20 @@ function Building.TypeFromReference(Reference: FakeBasePart)
 end
 
 function Building:CreatePart(Position: CFrame, Plot: Part, Type: string?): BasePart
+
+	local Build = Plot:WaitForChild("Build") :: Folder
+
 	if not Type then
 		Type = "Normal"
 	end
 
-	local Part = Queue:Enqueue("CreatePart", { Type, Position, Plot:FindFirstChild("Build") })
+	local Part
+
+	repeat
+		Part = Queue:Enqueue("CreatePart", { Type, Position, Build })
+		task.wait(1)
+		warn("Failed to create part, retrying...")
+	until Part
 
 	return Part
 end
@@ -869,12 +921,12 @@ function Building:BatchResize(PartsAndSizes: { { Part: BasePart, Size: Vector3, 
 
 		return
 	else
-		Queue:Enqueue("SyncResize", { PartsAndSizes })
+		Queue:EnqueueAsync("SyncResize", { PartsAndSizes })
 	end
 end
 
 function Building:Resize(Part: BasePart, Size: Vector3)
-	Queue:EnqueueAsync("SyncResize", { { Part = Part, CFrame = Part.CFrame, Size = Size } })
+	Queue:Enqueue("SyncResize", { { Part = Part, CFrame = Part.CFrame, Size = Size } })
 end
 
 function Building:BatchMove(PartsAndPositions: { { Part: BasePart, CFrame: CFrame } })
@@ -1008,7 +1060,7 @@ function Building:BatchSetMeshes(PartsAndReferences: { { Part: BasePart, Referen
 		end
 	end
 
-	Queue:EnqueueAsync("SyncMesh", { Changes })
+	Queue:Enqueue("SyncMesh", { Changes })
 	Building:WaitForBuildCooldown(ProgressBar)
 
 	return Results
@@ -1026,7 +1078,11 @@ function Building:Clone(Targets: { Instance }, Parent: Instance?)
 		end
 	end
 
-	return Queue:Enqueue("Clone", { Targets, Parent })
+	local Clones = Queue:Enqueue("Clone", { Targets, Parent })
+	if not Clones then
+		repeat Clones = Queue:Enqueue("Clone", { Targets, Parent }) until Clones
+	end
+	return Clones
 end
 
 function Building:BatchUpdateLights(
@@ -1222,7 +1278,7 @@ function Building:AllocateParts(Amount: number, Type: string, Plot: Part?, Progr
 
 	if Plot then
 		-- Create the first part
-		table.insert(AllocatedParts, self:CreatePart(Plot.CFrame + (Vector3.yAxis * 50), Plot, Type))
+		table.insert(AllocatedParts, self:CreatePart(Plot.CFrame + Vector3.new(0,1,0), Plot, Type))
 	end
 
 	if ProgressBar then
@@ -1447,7 +1503,6 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 
 	--#region Configure allocated parts
 
-	local MoveChanges = {}
 	local ColorChanges = {}
 	local MaterialChanges = {}
 	local SizeChanges = {}
@@ -1467,7 +1522,6 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 		end
 
 		table.insert(SizeChanges, { Part = AllocatedPart, Size = Part.Size, CFrame = Part.CFrame })
-		table.insert(MoveChanges, { Part = AllocatedPart, CFrame = Part.CFrame })
 		if Part.Color ~= BrickColor.new("Medium stone grey").Color then
 			table.insert(
 				ColorChanges,
@@ -1506,35 +1560,7 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 
 	-- task.wait(10)
 
-	ProgressBar:SetText("Positioning parts...")
-	ProgressBar:UpdateProgress(0)
-
-	Building:BatchResize(SizeChanges)
-
-	local AttemptsLeft = 5
-	repeat
-		local SizeChangesStage2 = {}
-
-		-- Check all the parts to see that they match the target color, if they don't, add them to the list
-		for _, SizeChange in next, SizeChanges do
-			local Part = SizeChange.Part
-			if Part.Size ~= SizeChange.Size or Part.CFrame.Position ~= SizeChange.CFrame.Position then
-				table.insert(SizeChangesStage2, SizeChange)
-			end
-		end
-
-		if #SizeChangesStage2 > 0 then
-			warn("Incorrect sizes: " .. #SizeChangesStage2)
-			Utility.ShuffleTable(SizeChangesStage2)
-			Building:BatchResize(SizeChangesStage2)
-			task.wait(0.2)
-		end
-
-		AttemptsLeft -= 1
-
-		ProgressBar:UpdateProgress(#SizeChangesStage2 / #SizeChanges * 100)
-
-	until #SizeChangesStage2 == 0 or AttemptsLeft <= 0
+	local AttemptsLeft = 0
 
 	Building:BatchUpdateColors(ColorChanges)
 
@@ -1626,6 +1652,36 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 		Building:BatchSetMeshes(MeshChanges)
 	end
 
+	ProgressBar:SetText("Positioning parts...")
+	ProgressBar:UpdateProgress(0)
+
+	Building:BatchResize(SizeChanges)
+
+	AttemptsLeft = 5
+	repeat
+		local SizeChangesStage2 = {}
+
+		-- Check all the parts to see that they match the target color, if they don't, add them to the list
+		for _, SizeChange in next, SizeChanges do
+			local Part = SizeChange.Part
+			if Part.Size ~= SizeChange.Size or Part.CFrame.Position ~= SizeChange.CFrame.Position then
+				table.insert(SizeChangesStage2, SizeChange)
+			end
+		end
+
+		if #SizeChangesStage2 > 0 then
+			warn("Incorrect sizes: " .. #SizeChangesStage2)
+			Utility.ShuffleTable(SizeChangesStage2)
+			Building:BatchResize(SizeChangesStage2)
+			task.wait(0.2)
+		end
+
+		AttemptsLeft -= 1
+
+		ProgressBar:UpdateProgress(#SizeChangesStage2 / #SizeChanges * 100)
+
+	until #SizeChangesStage2 == 0 or AttemptsLeft <= 0
+
 	warn("Done!")
 
 	PlotCache:Destroy()
@@ -1715,7 +1771,7 @@ do
 	G2L["7"]["RichText"] = true;
 	G2L["7"]["Size"] = UDim2.new(1, -20, 1, 0);
 	G2L["7"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-	G2L["7"]["Text"] = [[PlotCopy v3.7]];
+	G2L["7"]["Text"] = [[PlotCopy v3.8]];
 	G2L["7"]["Name"] = [[Text]];
 
 
