@@ -1181,6 +1181,10 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 
 			for _, Child in next, Reference:GetChildren() do
 				if Child:IsA("Texture") and Child.ClassName == "Texture" and Child.Face == Face then
+					-- if Child.Texture == "" then
+					-- 	warn("Texture is empty, skipping...")
+					-- 	continue
+					-- end
 					table.insert(Changes, {
 						Part = Part,
 						Face = Face,
@@ -1203,6 +1207,10 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 
 			for _, Child in next, Reference:GetChildren() do
 				if Child:IsA("Decal") and Child.ClassName == "Decal" and Child.Face == Face then
+					if Child.Texture == "" then
+						warn("Decal is empty, skipping...")
+						continue
+					end
 					table.insert(Changes, {
 						Part = Part,
 						Face = Face,
@@ -1532,7 +1540,7 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 				}
 			)
 		end
-		if Part.Material ~= Enum.Material.Plastic and Part.Transparency ~= 0 and Part.Reflectance ~= 0 then
+		if Part.Material ~= Enum.Material.Plastic or Part.Transparency ~= 0 or Part.Reflectance ~= 0 then
 			table.insert(MaterialChanges, { Part = AllocatedPart, Reference = Part })
 		end
 		table.insert(LightingChanges, { Part = AllocatedPart, Reference = Part })
