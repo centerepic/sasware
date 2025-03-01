@@ -921,7 +921,7 @@ function Building:BatchResize(PartsAndSizes: { { Part: BasePart, Size: Vector3, 
 
 		return
 	else
-		Queue:EnqueueAsync("SyncResize", { PartsAndSizes })
+		Queue:Enqueue("SyncResize", { PartsAndSizes })
 	end
 end
 
@@ -989,7 +989,7 @@ function Building:BatchUpdateMaterials(PartsAndReferences: { { Part: BasePart, R
 			})
 		end
 
-		Queue:EnqueueAsync("SyncMaterial", { Changes })
+		Queue:Enqueue("SyncMaterial", { Changes })
 	end
 end
 
@@ -1014,7 +1014,7 @@ function Building:BatchUpdateColors(PartsAndColors: { { Part: BasePart, Color: C
 
 		return
 	else
-		Queue:EnqueueAsync("SyncColor", { PartsAndColors })
+		Queue:Enqueue("SyncColor", { PartsAndColors })
 	end
 end
 
@@ -1532,7 +1532,9 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 				}
 			)
 		end
-		table.insert(MaterialChanges, { Part = AllocatedPart, Reference = Part })
+		if Part.Material ~= Enum.Material.Plastic and Part.Transparency ~= 0 and Part.Reflectance ~= 0 then
+			table.insert(MaterialChanges, { Part = AllocatedPart, Reference = Part })
+		end
 		table.insert(LightingChanges, { Part = AllocatedPart, Reference = Part })
 
 		if Part:FindFirstChildOfClass("SpecialMesh") then
@@ -1562,44 +1564,24 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 
 	local AttemptsLeft = 0
 
-	Building:BatchUpdateColors(ColorChanges)
-
-	ProgressBar:SetText("Coloring parts...")
-	ProgressBar:UpdateProgress(0)
-
-	AttemptsLeft = 50
-	repeat
-		local ColorChangesStage2 = {}
-
-		-- Check all the parts to see that they match the target color, if they don't, add them to the list
-		for _, ColorChange in next, ColorChanges do
-			local Part = ColorChange.Part
-			if Part.Color ~= ColorChange.Color then
-				table.insert(ColorChangesStage2, ColorChange)
-			end
-		end
-
-		if #ColorChangesStage2 > 0 then
-			warn("Incorrect colors: " .. #ColorChangesStage2)
-			Utility.ShuffleTable(ColorChangesStage2)
-			Building:BatchUpdateColors(ColorChangesStage2)
-			task.wait(0.2)
-		end
-
-		AttemptsLeft -= 1
-
-		ProgressBar:UpdateProgress(#ColorChangesStage2 / #ColorChanges * 100)
-	until #ColorChangesStage2 == 0 or AttemptsLeft <= 0
+	if #ColorChanges > 0 then
+		ProgressBar:SetText("Updating colors...")
+		ProgressBar:UpdateProgress(0)
+		Building:BatchUpdateColors(ColorChanges)
+	end
 
 	warn("Colors done!")
 	ProgressBar:UpdateProgress(0)
-	ProgressBar:SetText("Updating materials...")
-	Building:BatchUpdateMaterials(MaterialChanges)
-	ProgressBar:UpdateProgress(100)
+	if #MaterialChanges > 0 then
+		ProgressBar:SetText("Updating materials...")
+		ProgressBar:UpdateProgress(0)
+		Building:BatchUpdateMaterials(MaterialChanges)
+		ProgressBar:UpdateProgress(100)
+	end
 	warn("Materials done!")
 
 	ProgressBar:UpdateProgress(0)
-	ProgressBar:SetText("Updating materials...")
+	ProgressBar:SetText("Updating textures...")
 	Building:BatchUpdateTexturesAndDecals(TextureAndDecalChanges)
 	ProgressBar:UpdateProgress(100)
 	warn("Textures and decals done!")
@@ -1656,31 +1638,6 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 	ProgressBar:UpdateProgress(0)
 
 	Building:BatchResize(SizeChanges)
-
-	AttemptsLeft = 5
-	repeat
-		local SizeChangesStage2 = {}
-
-		-- Check all the parts to see that they match the target color, if they don't, add them to the list
-		for _, SizeChange in next, SizeChanges do
-			local Part = SizeChange.Part
-			if Part.Size ~= SizeChange.Size or Part.CFrame.Position ~= SizeChange.CFrame.Position then
-				table.insert(SizeChangesStage2, SizeChange)
-			end
-		end
-
-		if #SizeChangesStage2 > 0 then
-			warn("Incorrect sizes: " .. #SizeChangesStage2)
-			Utility.ShuffleTable(SizeChangesStage2)
-			Building:BatchResize(SizeChangesStage2)
-			task.wait(0.2)
-		end
-
-		AttemptsLeft -= 1
-
-		ProgressBar:UpdateProgress(#SizeChangesStage2 / #SizeChanges * 100)
-
-	until #SizeChangesStage2 == 0 or AttemptsLeft <= 0
 
 	warn("Done!")
 
