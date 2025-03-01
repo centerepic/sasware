@@ -862,7 +862,7 @@ function Building.TypeFromReference(Reference: FakeBasePart)
 	if Reference:IsA("Seat") then
 		Type = "Seat"
 	elseif Reference:IsA("VehicleSeat") then
-		Type = "VehicleSeat"
+		Type = "Vehicle Seat"
 	elseif Reference:IsA("Part") then
 		Type = ShapeTypeReference[Reference.Shape] or "Normal"
 	else
