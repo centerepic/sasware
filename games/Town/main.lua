@@ -305,7 +305,7 @@ function Queue:Step()
 					warn("Failed to invoke server, retrying...", Error)
 					task.wait(1)
 				end
-			until Success and Ret and type(Ret) == "table"
+			until Success and ((Ret and type(Ret) == "table") or NoRet)
 
 			if Callback then
 				if NoRet then
@@ -1008,7 +1008,7 @@ function Building:BatchUpdateColors(PartsAndColors: { { Part: BasePart, Color: C
 		end
 
 		for _, Chunk in next, PartChunks do
-			Queue:EnqueueAsync("SyncColor", { Chunk })
+			Queue:EnqueueNoRet("SyncColor", { Chunk })
 			task.wait(0.1)
 		end
 
@@ -1196,7 +1196,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 
 		if #Changes > 0 then
 			print("Batch creating " .. #Changes .. " textures")
-			Queue:Enqueue("CreateTextures", { Changes })
+			Queue:EnqueueNoRet("CreateTextures", { Changes })
 		end
 
 		Changes = {}
