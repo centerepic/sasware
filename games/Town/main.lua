@@ -1,9 +1,29 @@
-pcall(function()
-	rconsolecreate()
-end)
+local function Stringify(Values : {any}) : {string}
+	local Stringified = {}
+	for Index, Value in next, Values do
+		table.insert(Stringified, tostring(Value))
+	end
+	return Stringified
+end
 
-local fprint = rconsoleprint or print
-local fwarn = rconsolewarn or warn
+
+local fprint = print
+local fwarn = warn
+
+pcall(function()
+
+	rconsolecreate()
+
+	if rconsoleprint then
+		fprint = function(...)
+			rconsoleprint('PCV3: ' .. table.concat(Stringify({...}), ' '))
+		end
+		fwarn = function(...)
+			rconsolewarn('PCV3: ' .. table.concat(Stringify({...}), ' '))
+		end
+	end
+
+end)
 
 local Compression = loadstring(game:HttpGet("https://raw.githubusercontent.com/centerepic/PCV3/refs/heads/main/Compression.lua"))()
 local Region = loadstring(game:HttpGet("https://github.com/centerepic/PCV3/raw/refs/heads/main/Region.lua"))()
