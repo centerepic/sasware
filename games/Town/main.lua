@@ -1,38 +1,45 @@
+pcall(function()
+	rconsolecreate()
+end)
+
+local fprint = rconsoleprint or print
+local fwarn = rconsolewarn or warn
+
 local Compression = loadstring(game:HttpGet("https://raw.githubusercontent.com/centerepic/PCV3/refs/heads/main/Compression.lua"))()
 local Region = loadstring(game:HttpGet("https://github.com/centerepic/PCV3/raw/refs/heads/main/Region.lua"))()
 
 --#region Adonis Bypasses
 
-if hookfunction then
-	local Success = pcall(function()
-		local LogService = game:GetService("LogService")
-		local Offset = math.random(1, workspace.DistributedGameTime)
-		local OldGetLogHistory; OldGetLogHistory = hookfunction(LogService.GetLogHistory, function(...)
-			if checkcaller() then return OldGetLogHistory(...) end
+-- if hookfunction then
+-- 	local Success = pcall(function()
+-- 		local LogService = game:GetService("LogService")
+-- 		local Offset = math.random(1, workspace.DistributedGameTime)
+-- 		local OldGetLogHistory; OldGetLogHistory = hookfunction(LogService.GetLogHistory, function(...)
+-- 			if checkcaller() then return OldGetLogHistory(...) end
 
-			local Success, _ = pcall(OldGetLogHistory, ...)
+-- 			local Success, _ = pcall(OldGetLogHistory, ...)
 
-			if not Success then
-				-- print("Check averted.")
-				-- print(Error, ...)
-				return OldGetLogHistory(...)
-			end
+-- 			if not Success then
+-- 				-- fprint("Check averted.")
+-- 				-- fprint(Error, ...)
+-- 				return OldGetLogHistory(...)
+-- 			end
 
-			return {
-				{
-					message = "JointsService is deprecated, but an instance was added to JointsService: JointsService.Weld",
-					messageType = Enum.MessageType.MessageWarning,
-					timeStamp = workspace.DistributedGameTime - Offset
-				}
-			}
-		end)
-	end)
-	if not Success then
-		warn("Failed to load ChecksCashed")
-	else
-		warn("Loaded ChecksCashed")
-	end
-end
+-- 			return {
+-- 				{
+-- 					message = "JointsService is deprecated, but an instance was added to JointsService: JointsService.Weld",
+-- 					messageType = Enum.MessageType.MessageWarning,
+-- 					timeStamp = workspace.DistributedGameTime - Offset
+-- 				}
+-- 			}
+-- 		end)
+-- 	end)
+-- 	if not Success then
+-- 		fwarn("Failed to load ChecksCashed")
+-- 	else
+-- 		fwarn("Loaded ChecksCashed")
+-- 	end
+-- end
 
 --#endregion
 
@@ -41,10 +48,10 @@ end
 local game = game :: DataModel -- FAAAAAAAAAAAA YOUUUUUUUUUUUUUUU
 local CallQueueFlushRate = 1 / 20
 local MaxPartsPerCloneCall = 499
-local MaxPartsPerMoveCall = 4000
-local MaxPartsPerColorCall = 4000
-local MaxPartsPerMaterialCall = 4000
-local MaxPartsPerResizeCall = 4000
+local MaxPartsPerMoveCall = 50000
+local MaxPartsPerColorCall = 50000
+local MaxPartsPerMaterialCall = 50000
+local MaxPartsPerResizeCall = 50000
 local IgnoreEmptyGroups = true
 
 -- FakePart is a client-side part that is used to replicate part properties to the server
@@ -220,7 +227,7 @@ function Utility.GetDepthFromAncestor(Item: Instance, Ancestor: Instance): numbe
 	local Origin = Item.Parent
 
 	if Item.Parent == nil then
-		warn("Item has no parent")
+		fwarn("Item has no parent")
 		return 9999
 	end
 
@@ -228,12 +235,12 @@ function Utility.GetDepthFromAncestor(Item: Instance, Ancestor: Instance): numbe
 
 	while Item ~= Ancestor do
 		if Item == nil then
-			warn("Item is not a descendant of Ancestor", Origin, Ancestor)
+			fwarn("Item is not a descendant of Ancestor", Origin, Ancestor)
 			return 9999
 		end
 
 		if Item.Parent == nil then
-			warn("Item has no parent")
+			fwarn("Item has no parent")
 			return 9999
 		end
 
@@ -302,7 +309,7 @@ function Queue:Step()
 					end
 				end)
 				if not Success then
-					warn("Failed to invoke server, retrying...", Error)
+					fwarn("Failed to invoke server, retrying...", Error)
 					task.wait(1)
 				end
 			until Success and ((Ret and type(Ret) == "table") or NoRet)
@@ -564,7 +571,7 @@ do
 		local function RecurseDeserialize(ObjData, ObjParent)
 
 			if ObjData.ClassName == "TouchTransmitter" then
-				return warn("Cannot create instance of type TouchTransmitter (Ignored)")
+				return fwarn("Cannot create instance of type TouchTransmitter (Ignored)")
 			end
 
 			local NewObj = Instance.new(ObjData.ClassName)
@@ -885,7 +892,7 @@ function Building:CreatePart(Position: CFrame, Plot: Part, Type: string?): BaseP
 	repeat
 		Part = Queue:Enqueue("CreatePart", { Type, Position, Build })
 		task.wait(1)
-		warn("Failed to create part, retrying...")
+		fwarn("Failed to create part, retrying...")
 	until Part
 
 	return Part
@@ -893,7 +900,7 @@ end
 
 function Building:BatchResize(PartsAndSizes: { { Part: BasePart, Size: Vector3, CFrame: CFrame } })
 	if #PartsAndSizes > MaxPartsPerResizeCall then
-		warn("[LargeBatch] Processing batch of " .. #PartsAndSizes .. " resize calls")
+		fwarn("[LargeBatch] Processing batch of " .. #PartsAndSizes .. " resize calls")
 	end
 
 	-- Split the parts into chunks of MaxPartsPerResizeCall
@@ -909,24 +916,24 @@ function Building:BatchResize(PartsAndSizes: { { Part: BasePart, Size: Vector3, 
 		end
 
 		for i, Chunk in next, PartChunks do
-			print("Processing chunk " .. i .. " of " .. #PartChunks .. " [Size: " .. #Chunk .. "]")
+			fprint("Processing chunk " .. i .. " of " .. #PartChunks .. " [Size: " .. #Chunk .. "]")
 			local success, err = pcall(function()
-				Queue:Enqueue("SyncResize", { Chunk })
+				Queue:EnqueueNoRet("SyncResize", { Chunk })
 			end)
 			if not success then
-				warn("Failed to enqueue chunk " .. i .. ": " .. err)
+				fwarn("Failed to enqueue chunk " .. i .. ": " .. err)
 			end
 			task.wait(0.1)
 		end
 
 		return
 	else
-		Queue:Enqueue("SyncResize", { PartsAndSizes })
+		Queue:EnqueueNoRet("SyncResize", { PartsAndSizes })
 	end
 end
 
 function Building:Resize(Part: BasePart, Size: Vector3)
-	Queue:Enqueue("SyncResize", { { Part = Part, CFrame = Part.CFrame, Size = Size } })
+	Queue:EnqueueNoRet("SyncResize", { { Part = Part, CFrame = Part.CFrame, Size = Size } })
 end
 
 function Building:BatchMove(PartsAndPositions: { { Part: BasePart, CFrame: CFrame } })
@@ -989,7 +996,7 @@ function Building:BatchUpdateMaterials(PartsAndReferences: { { Part: BasePart, R
 			})
 		end
 
-		Queue:Enqueue("SyncMaterial", { Changes })
+		Queue:EnqueueNoRet("SyncMaterial", { Changes })
 	end
 end
 
@@ -1014,7 +1021,7 @@ function Building:BatchUpdateColors(PartsAndColors: { { Part: BasePart, Color: C
 
 		return
 	else
-		Queue:Enqueue("SyncColor", { PartsAndColors })
+		Queue:EnqueueNoRet("SyncColor", { PartsAndColors })
 	end
 end
 
@@ -1113,7 +1120,7 @@ function Building:BatchUpdateLights(
 
 		ProgressBar:SetText("Creating " .. #Changes .. " " .. LightClass .. " lights")
 
-		print("Batch creating " .. #Changes .. " " .. LightClass .. " lights")
+		fprint("Batch creating " .. #Changes .. " " .. LightClass .. " lights")
 
 		ProgressBar:UpdateProgress(0)
 
@@ -1121,11 +1128,11 @@ function Building:BatchUpdateLights(
 
 		ProgressBar:UpdateProgress(100)
 
-		print("Waiting for light configuration cooldown...")
+		fprint("Waiting for light configuration cooldown...")
 		ProgressBar:SetText("Waiting for cooldown...")
 
 		Building:WaitForBuildCooldown(ProgressBar)
-		print("Configuring lights...")
+		fprint("Configuring lights...")
 
 		-- Step 2. Configure the lights
 
@@ -1171,7 +1178,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 	-- Step 1. Create the textures
 
 	for _, Face in next, Enum.NormalId:GetEnumItems() do
-		print("Processing face " .. Face.Name)
+		fprint("Processing face " .. Face.Name)
 
 		Changes = {}
 
@@ -1182,7 +1189,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 			for _, Child in next, Reference:GetChildren() do
 				if Child:IsA("Texture") and Child.ClassName == "Texture" and Child.Face == Face then
 					-- if Child.Texture == "" then
-					-- 	warn("Texture is empty, skipping...")
+					-- 	fwarn("Texture is empty, skipping...")
 					-- 	continue
 					-- end
 					table.insert(Changes, {
@@ -1195,7 +1202,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 		end
 
 		if #Changes > 0 then
-			print("Batch creating " .. #Changes .. " textures")
+			fprint("Batch creating " .. #Changes .. " textures")
 			Queue:EnqueueNoRet("CreateTextures", { Changes })
 		end
 
@@ -1208,7 +1215,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 			for _, Child in next, Reference:GetChildren() do
 				if Child:IsA("Decal") and Child.ClassName == "Decal" and Child.Face == Face then
 					if Child.Texture == "" then
-						warn("Decal is empty, skipping...")
+						fwarn("Decal is empty, skipping...")
 						continue
 					end
 					table.insert(Changes, {
@@ -1221,7 +1228,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 		end
 
 		if #Changes > 0 then
-			print("Batch creating " .. #Changes .. " decals")
+			fprint("Batch creating " .. #Changes .. " decals")
 			Queue:Enqueue("CreateTextures", { Changes })
 		end
 
@@ -1247,7 +1254,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 		end
 
 		if #Changes > 0 then
-			print("Batch configuring " .. #Changes .. " textures")
+			fprint("Batch configuring " .. #Changes .. " textures")
 			Queue:Enqueue("SyncTexture", { Changes })
 		end
 
@@ -1271,7 +1278,7 @@ function Building:BatchUpdateTexturesAndDecals(PartsAndReferences: { { Part: Bas
 		end
 
 		if #Changes > 0 then
-			print("Batch configuring " .. #Changes .. " decals")
+			fprint("Batch configuring " .. #Changes .. " decals")
 			Queue:Enqueue("SyncTexture", { Changes })
 		end
 	end
@@ -1298,8 +1305,8 @@ function Building:AllocateParts(Amount: number, Type: string, Plot: Part?, Progr
 			ProgressBar:UpdateProgress(#AllocatedParts / Amount * 100)
 		end
 
-		print("AllocatedParts", #AllocatedParts)
-		print("Target", Amount)
+		fprint("AllocatedParts", #AllocatedParts)
+		fprint("Target", Amount)
 
 		-- Max we can clone per call must be less than or equal to MaxPartsPerCloneCall
 
@@ -1319,7 +1326,7 @@ function Building:AllocateParts(Amount: number, Type: string, Plot: Part?, Progr
 		end
 	end
 
-	warn("Successfully allocated " .. #AllocatedParts .. " parts!")
+	fwarn("Successfully allocated " .. #AllocatedParts .. " parts!")
 
 	if ProgressBar then
 		ProgressBar:UpdateProgress(0)
@@ -1379,7 +1386,7 @@ function Building:RecurseGroup(Model: Model, PartReferences, Depth: number?): Mo
 		end
 	end
 
-	print("Creating group with " .. #Children .. " children | Depth: " .. Depth)
+	fprint("Creating group with " .. #Children .. " children | Depth: " .. Depth)
 
 	return Building:CreateGroup(Children, PartReferences[Model])
 end
@@ -1411,7 +1418,7 @@ end
 task.spawn(function()
 	while true do
 		-- if #CallQueue > 0 then
-		-- 	table.foreach(CallQueue[1], print)
+		-- 	table.foreach(CallQueue[1], fprint)
 		-- end
 		Queue:Step()
 		task.wait(CallQueueFlushRate)
@@ -1452,7 +1459,7 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 			end
 
 			if not Building:BoundsCheck(MyPlot, Part) then
-				print("Part", Part, "is out of bounds", "ClassName:", Part.ClassName)
+				fprint("Part", Part, "is out of bounds", "ClassName:", Part.ClassName)
 				BoundsFilteredParts += 1
 				continue
 			end
@@ -1462,10 +1469,10 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 				local State = Part:FindFirstChild("DoorState")
 
 				if State and State.Value == false then
-					print("Checking hinge")
+					fprint("Checking hinge")
 					-- Reset the hinge to its default position
 					if Part.Parent then
-						print("Parent found")
+						fprint("Parent found")
 						local OutHinge = Part.Parent:FindFirstChild("OutHinge") :: BasePart
 						local InHinge = Part.Parent:FindFirstChild("InHinge") :: BasePart
 						if OutHinge and InHinge then
@@ -1484,7 +1491,7 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 			table.insert(PlotCacheParts, Part)
 
 			local TypeKey = Building.TypeFromReference(Part)
-			print("TypeKey", TypeKey, Part)
+			fprint("TypeKey", TypeKey, Part)
 
 			if not PartTypes[TypeKey] then
 				PartTypes[TypeKey] = {}
@@ -1497,7 +1504,7 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 	local ProgressBar = Progress.new()
 
 	for Type, Parts in next, PartTypes do
-		warn("Allocating " .. #Parts .. " " .. Type .. " parts")
+		fwarn("Allocating " .. #Parts .. " " .. Type .. " parts")
 		local AllocatedParts = Building:AllocateParts(#Parts, Type, MyPlot, ProgressBar)
 
 		if not Allocation[Type] then
@@ -1562,15 +1569,13 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 		table.insert(RealAllocatedParts, Part)
 	end
 
-	warn("Allocated " .. #RealAllocatedParts .. " parts")
-	warn("Allocation supposed to be " .. #PlotCacheParts .. " parts")
-	warn("Filtered " .. FilteredParts .. " parts")
-	warn("Bounds filtered " .. BoundsFilteredParts .. " parts")
-	warn("Unallocated " .. UnallocatedParts .. " parts")
+	fwarn("Allocated " .. #RealAllocatedParts .. " parts")
+	fwarn("Allocation supposed to be " .. #PlotCacheParts .. " parts")
+	fwarn("Filtered " .. FilteredParts .. " parts")
+	fwarn("Bounds filtered " .. BoundsFilteredParts .. " parts")
+	fwarn("Unallocated " .. UnallocatedParts .. " parts")
 
 	-- task.wait(10)
-
-	local AttemptsLeft = 0
 
 	if #ColorChanges > 0 then
 		ProgressBar:SetText("Updating colors...")
@@ -1578,7 +1583,7 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 		Building:BatchUpdateColors(ColorChanges)
 	end
 
-	warn("Colors done!")
+	fwarn("Colors done!")
 	ProgressBar:UpdateProgress(0)
 	if #MaterialChanges > 0 then
 		ProgressBar:SetText("Updating materials...")
@@ -1586,56 +1591,21 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 		Building:BatchUpdateMaterials(MaterialChanges)
 		ProgressBar:UpdateProgress(100)
 	end
-	warn("Materials done!")
-
-	ProgressBar:UpdateProgress(0)
-	ProgressBar:SetText("Updating textures...")
-	Building:BatchUpdateTexturesAndDecals(TextureAndDecalChanges)
-	ProgressBar:UpdateProgress(100)
-	warn("Textures and decals done!")
+	fwarn("Materials done!")
 
 	if Configuration.LoadDecorations then
-		ProgressBar:SetText("Making groups...")
+
 		ProgressBar:UpdateProgress(0)
-
-		local Groups = 0
-		local GroupsDone = 0
-
-		if Configuration.SkipNonWiringGroups then
-			for _, Child in next, Build:GetChildren() do
-				if Child:IsA("Model") and Building:IsGroupWired(Child) then
-					Groups += 1
-				end
-			end
-
-			for _, Child in next, Build:GetChildren() do
-				if Child:IsA("Model") and Building:IsGroupWired(Child) then
-					Building:RecurseGroup(Child, PartAssociations)
-					GroupsDone += 1
-					ProgressBar:UpdateProgress(GroupsDone / Groups * 100)
-				end
-			end
-		else
-			for _, Child in next, Build:GetChildren() do
-				if Child:IsA("Model") then
-					Groups += 1
-				end
-			end
-
-			for _, Child in next, Build:GetChildren() do
-				if Child:IsA("Model") then
-					Building:RecurseGroup(Child, PartAssociations)
-					GroupsDone += 1
-					ProgressBar:UpdateProgress(GroupsDone / Groups * 100)
-				end
-			end
-		end
+		ProgressBar:SetText("Updating textures...")
+		Building:BatchUpdateTexturesAndDecals(TextureAndDecalChanges)
+		ProgressBar:UpdateProgress(100)
+		fwarn("Textures and decals done!")
 
 		ProgressBar:SetText("Loading lights...")
 		ProgressBar:UpdateProgress(0)
 		Building:BatchUpdateLights(LightingChanges, ProgressBar)
 		ProgressBar:UpdateProgress(100)
-		warn("Lights done!")
+		fwarn("Lights done!")
 
 		ProgressBar:SetText("Loading meshes...")
 		ProgressBar:UpdateProgress(0)
@@ -1647,7 +1617,45 @@ function Building:Build(PlotCache: Part, MyPlot: Part, Configuration)
 
 	Building:BatchResize(SizeChanges)
 
-	warn("Done!")
+	ProgressBar:UpdateProgress(100)
+
+	ProgressBar:SetText("Making groups...")
+	ProgressBar:UpdateProgress(0)
+
+	local Groups = 0
+	local GroupsDone = 0
+
+	if Configuration.SkipNonWiringGroups then
+		for _, Child in next, Build:GetChildren() do
+			if Child:IsA("Model") and Building:IsGroupWired(Child) then
+				Groups += 1
+			end
+		end
+
+		for _, Child in next, Build:GetChildren() do
+			if Child:IsA("Model") and Building:IsGroupWired(Child) then
+				Building:RecurseGroup(Child, PartAssociations)
+				GroupsDone += 1
+				ProgressBar:UpdateProgress(GroupsDone / Groups * 100)
+			end
+		end
+	else
+		for _, Child in next, Build:GetChildren() do
+			if Child:IsA("Model") then
+				Groups += 1
+			end
+		end
+
+		for _, Child in next, Build:GetChildren() do
+			if Child:IsA("Model") then
+				Building:RecurseGroup(Child, PartAssociations)
+				GroupsDone += 1
+				ProgressBar:UpdateProgress(GroupsDone / Groups * 100)
+			end
+		end
+	end
+
+	fwarn("Done!")
 
 	PlotCache:Destroy()
 	ProgressBar:Destroy()
@@ -2502,7 +2510,7 @@ BindButton(LoadFileButton, function()
 
 			coroutine.resume(BuildThread)
 		else
-			warn("Failed to load plot")
+			fwarn("Failed to load plot")
 		end
 
 		State.StateText = "Idle"
