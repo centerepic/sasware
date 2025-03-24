@@ -1983,7 +1983,7 @@ local Success, Error = pcall(function()
 	local AutoCastCoroutine = coroutine.create(function()
 		local LastCastAttempt = 0
 
-		while task.wait(0.3) do
+		while task.wait(0.5) do
 			if GetToggleValue("AutoCast") then
 				pcall(function()
 					if not CurrentTool then
