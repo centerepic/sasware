@@ -1903,37 +1903,38 @@ local Success, Error = pcall(function()
 					if replicatesignal then
 						replicatesignal(Child.MouseButton1Click)
 						task.delay(0.05, function() Child:Destroy() end) -- the shake ui is a bit buggy if you click it this fast so to avoid the visual glitch we destroy it
-					else
-						local Done = false
-
-						task.spawn(function()
-							repeat
-								RunService.Heartbeat:Wait()
-								HandleButton(Child)
-							until Done
-						end)
-
-						task.spawn(function()
-							repeat
-								RunService.Heartbeat:Wait()
-							until (not Child) or (not Child:IsDescendantOf(SafeZone))
-							Done = true
-						end)
+						return
 					end
+					
+					local Done = false
+
+					task.spawn(function()
+						repeat
+							RunService.Heartbeat:Wait()
+							HandleButton(Child)
+						until Done
+					end)
+
+					task.spawn(function()
+						repeat
+							RunService.Heartbeat:Wait()
+						until (not Child) or (not Child:IsDescendantOf(SafeZone))
+						Done = true
+					end)
 				end)
 
-				if not replicatesignal then
-					repeat
-						RunService.Heartbeat:Wait()
-						if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(SafeZone) then
-							VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-							VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-						end
-						RunService.Heartbeat:Wait()
-					until not SafeZone:IsDescendantOf(LocalPlayer.PlayerGui)
-					Connection:Disconnect()
-					GuiService.SelectedObject = nil
-				end
+				if replicatesignal then return end
+				
+				repeat
+					RunService.Heartbeat:Wait()
+					if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(SafeZone) then
+						VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+						VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+					end
+					RunService.Heartbeat:Wait()
+				until not SafeZone:IsDescendantOf(LocalPlayer.PlayerGui)
+				Connection:Disconnect()
+				GuiService.SelectedObject = nil
 			end
 		end
 
