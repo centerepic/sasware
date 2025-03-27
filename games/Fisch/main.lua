@@ -1898,7 +1898,12 @@ local Success, Error = pcall(function()
 
 			if GetToggleValue("AutoShake") then
 				local Connection = SafeZone.ChildAdded:Connect(function(Child)
-					if Child:IsA("ImageButton") then
+					if not Child:IsA("ImageButton") then return end
+					
+					if replicatesignal then
+						replicatesignal(Child.MouseButton1Click)
+						task.delay(0.05, function() Child:Destroy() end) -- the shake ui is a bit buggy if you click it this fast so to avoid the visual glitch we destroy it
+					else
 						local Done = false
 
 						task.spawn(function()
@@ -1917,16 +1922,18 @@ local Success, Error = pcall(function()
 					end
 				end)
 
-				repeat
-					RunService.Heartbeat:Wait()
-					if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(SafeZone) then
-						VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-						VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-					end
-					RunService.Heartbeat:Wait()
-				until not SafeZone:IsDescendantOf(LocalPlayer.PlayerGui)
-				Connection:Disconnect()
-				GuiService.SelectedObject = nil
+				if not replicatesignal then
+					repeat
+						RunService.Heartbeat:Wait()
+						if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(SafeZone) then
+							VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+							VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+						end
+						RunService.Heartbeat:Wait()
+					until not SafeZone:IsDescendantOf(LocalPlayer.PlayerGui)
+					Connection:Disconnect()
+					GuiService.SelectedObject = nil
+				end
 			end
 		end
 
