@@ -1898,25 +1898,33 @@ local Success, Error = pcall(function()
 
 			if GetToggleValue("AutoShake") then
 				local Connection = SafeZone.ChildAdded:Connect(function(Child)
-					if Child:IsA("ImageButton") then
-						local Done = false
-
-						task.spawn(function()
-							repeat
-								RunService.Heartbeat:Wait()
-								HandleButton(Child)
-							until Done
-						end)
-
-						task.spawn(function()
-							repeat
-								RunService.Heartbeat:Wait()
-							until (not Child) or (not Child:IsDescendantOf(SafeZone))
-							Done = true
-						end)
+					if not Child:IsA("ImageButton") then return end
+					
+					if replicatesignal then
+						replicatesignal(Child.MouseButton1Click)
+						task.delay(0.05, function() Child:Destroy() end) -- the shake ui is a bit buggy if you click it this fast so to avoid the visual glitch we destroy it
+						return
 					end
+					
+					local Done = false
+
+					task.spawn(function()
+						repeat
+							RunService.Heartbeat:Wait()
+							HandleButton(Child)
+						until Done
+					end)
+
+					task.spawn(function()
+						repeat
+							RunService.Heartbeat:Wait()
+						until (not Child) or (not Child:IsDescendantOf(SafeZone))
+						Done = true
+					end)
 				end)
 
+				if replicatesignal then return end
+				
 				repeat
 					RunService.Heartbeat:Wait()
 					if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(SafeZone) then
