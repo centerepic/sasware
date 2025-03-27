@@ -172,7 +172,8 @@ local Cleaner = {
 		["RBXScriptConnection"] = true,
 		["Instance"] = true,
 		["table"] = true,
-		["function"] = true
+		["function"] = true,
+		["thread"] = true
 	},
 	CleanEvent = Instance.new("BindableEvent")
 }
@@ -204,6 +205,8 @@ function Cleaner.Clean()
 			end
 		elseif type(Object) == "function" then
 			Object()
+		elseif type(Object) == "thread" then
+			coroutine.close(Object)
 		end
 
 		Cleaner.Registry[Object] = nil
@@ -1438,16 +1441,33 @@ local Success, Error = xpcall(function()
 		return Old(...)
 	end)
 
+	Cleaner(task.spawn(function()
+		while task.wait(1) do
+			if G_Toggle("HideName") then
+				Net.send("enter_character_creator")
+			end
+		end
+	end))
+
 	--#endregion
 
 	--#region UI Initialization
 
-	local Repository = "https://raw.githubusercontent.com/mstudio45/Obsidian/refs/heads/main/"
+	local Repository = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
 	local Library = loadstring(game:HttpGet(Repository .. "Library.lua"))()
 	local ThemeManager = loadstring(game:HttpGet(Repository .. "addons/ThemeManager.lua"))()
 	local SaveManager = loadstring(game:HttpGet(Repository .. "addons/SaveManager.lua"))()
 
 	Library.RiskColor = Color3.new(0.960784, 0.592157, 0.376471)
+
+	-- Library.Scheme = {
+	-- 	BackgroundColor = Color3.fromRGB(14, 4, 20),
+	-- 	MainColor = Color3.fromRGB(26, 15, 36),
+	-- 	AccentColor = Color3.fromRGB(116, 61, 180),
+	-- 	OutlineColor = Color3.fromRGB(41, 28, 45),
+	-- 	FontColor = Color3.new(1, 1, 1),
+	-- 	Font = Font.fromEnum(Enum.Font.BuilderSans),
+	-- }
 
 	Cleaner.GetCleanEvent():Connect(function()
 		Library:Unload()
@@ -1507,7 +1527,23 @@ local Success, Error = xpcall(function()
 
 	local VulnerabilitiesGroup = Tabs.Main:AddLeftGroupbox("Vulnerabilities")
 
-	VulnerabilitiesGroup:AddLabel("all patched :(")
+	VulnerabilitiesGroup:AddToggle("HideName", {
+		Text = "Hide Name [SERVER]",
+		Default = false,
+		Tooltip = "Hides your name for everyone.",
+		Risky = true,
+		Callback = function(Value)
+			if Value then
+				Net.send("enter_character_creator")
+			else
+				Net.send("exit_character_creator")
+			end
+		end
+	})
+
+	VulnerabilitiesGroup:AddLabel({Text = "Hide name makes you unable to do damage.", DoesWrap = true})
+
+	VulnerabilitiesGroup:AddLabel("rest are patched :(")
 
 	-- Automation tab
 
