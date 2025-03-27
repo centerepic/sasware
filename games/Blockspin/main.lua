@@ -2,7 +2,7 @@
 --!nolint BuiltinGlobalWrite
 --!nolint UnknownGlobal
 
-local DEBUGGING = true
+local DEBUGGING = false
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
@@ -12,6 +12,10 @@ local HIDN = 0
 
 _G.__HOOK_KEY = ""
 _G.__ORIGINAL_KEY = ""
+
+if not (rconsolecreate and rconsolesettitle) then
+	USERCONSOLE = false
+end
 
 if USERCONSOLE then
 	rconsolesettitle("Sasware Debugger")
