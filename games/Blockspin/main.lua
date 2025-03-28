@@ -2,7 +2,7 @@
 --!nolint BuiltinGlobalWrite
 --!nolint UnknownGlobal
 
-local DEBUGGING = false
+local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
@@ -190,6 +190,12 @@ function Cleaner.Register(Object : any)
 	end
 
 	Cleaner.Registry[Object] = true
+
+	return {
+		Clean = function()
+			Cleaner.CleanOne(Object)
+		end
+	}
 end
 
 function Cleaner.Clean()
@@ -212,6 +218,34 @@ function Cleaner.Clean()
 		Cleaner.Registry[Object] = nil
 	end
 	Cleaner.CleanEvent:Fire()
+end
+
+function Cleaner.CleanOne(Object : any)
+	if not Cleaner.AllowedTypes[typeof(Object)] then
+		swarn("Attempted to clean an invalid object type:", typeof(Object))
+		return
+	end
+
+	if not Cleaner.Registry[Object] then
+		swarn("Object is not registered for cleanup:", Object)
+		return
+	end
+
+	if typeof(Object) == "RBXScriptConnection" then
+		Object:Disconnect()
+	elseif typeof(Object) == "Instance" then
+		Object:Destroy()
+	elseif type(Object) == "table" then
+		for Index, Value in next, Object do
+			Object[Index] = nil
+		end
+	elseif type(Object) == "function" then
+		Object()
+	elseif type(Object) == "thread" then
+		coroutine.close(Object)
+	end
+
+	Cleaner.Registry[Object] = nil
 end
 
 function Cleaner.GetCleanEvent()
@@ -1210,6 +1244,8 @@ end
 local Success, Error = xpcall(function()
 	--#region Enviroment Scanning
 
+	local CharacterHooksInitialized = false
+
 	local HookTargets = {
 		"sprint_bar"
 	}
@@ -1230,7 +1266,7 @@ local Success, Error = xpcall(function()
 		Melee_Attributes = {
 			{Name = "ConeAngle", Type = "number", Min = 30, Max = 360},
 			{Name = "Range", Type = "number", Min = 1, Max = 20},
-			{Name = "Speed", Type = "number", Min = 0.1, Max = 5}
+			-- {Name = "Speed", Type = "number", Min = 0.1, Max = 5}
 		}
 	}
 
@@ -1260,6 +1296,7 @@ local Success, Error = xpcall(function()
 	local CollectionService = game:GetService("CollectionService")
 	local LocalPlayer = Players.LocalPlayer
 	local Camera = workspace.CurrentCamera
+	local Debris = game:GetService("Debris")
 
 	local Modules = ReplicatedStorage:WaitForChild("Modules")
 	local Core = Modules:WaitForChild("Core")
@@ -1267,7 +1304,9 @@ local Success, Error = xpcall(function()
 
 	local Net = require(Core:WaitForChild("Net"))
 	local Gun = require(Game.ItemTypes:WaitForChild("Gun"))
+	local Melee = require(Game.ItemTypes:WaitForChild("Melee"))
 	local Crate = require(Game.CrateSystem.Crate)
+	local Sprint = require(Game.Sprint)
 
 	Aiming_Library.Enabled = true
 	Aiming_Library.FOV = 60
@@ -1308,13 +1347,53 @@ local Success, Error = xpcall(function()
 		end
 	)
 
+	local function SignalYield(Signal : RBXScriptSignal, Times : number?, Callback : ((any) -> nil)?)
+
+		if not Times then
+			Times = 1
+		end
+
+		for _ = 0, Times :: number do
+
+			if Callback then
+				Callback()
+			end
+
+			Signal:Wait()
+		end
+	end
+
 	local function CharacterAdded(Character : Model)
+
+		CharacterHooksInitialized = false
 
 		local BodyMoverConnection = ConnectionProxyMgr:YieldForConnection(Character.DescendantAdded, "PlayerWellbeing", 5)
 		dbgprint("BodyMoverConnection:", BodyMoverConnection)
 		if BodyMoverConnection then
 			ConnectionProxyMgr:Register(BodyMoverConnection):Disable()
 		end
+
+		local UpperTorso = Character:WaitForChild("UpperTorso") :: Part
+
+		local NoclipSignal = ConnectionProxyMgr:YieldForConnection(UpperTorso:GetPropertyChangedSignal("CanCollide"), "Animate", 5)
+		dbgprint("NoclipConnection:", NoclipSignal)
+		if NoclipSignal then
+			ConnectionProxyMgr:Register(NoclipSignal):Disable()
+		end
+
+		CharacterHooksInitialized = true
+
+		Cleaner(RunService.Stepped:Connect(function()
+			if G_Toggle("Noclip") then
+				for _, Descendant in next, Character:GetDescendants() do
+					if Descendant:IsA("BasePart") then
+						Descendant.CanCollide = false
+					end
+				end
+			else
+				UpperTorso.CanCollide = true
+			end
+		end))
 
 	end
 
@@ -1398,7 +1477,7 @@ local Success, Error = xpcall(function()
 			
 			local Method = getnamecallmethod()
 
-			if G_Toggle("GunModificationEnabled") and (Method == "GetAttribute") then
+			if G_Toggle("GunModificationEnabled") or G_Toggle("MeleeModificationEnabled") and (Method == "GetAttribute") then
 
 				-- dbgprint("GetAttribute called with", ...)
 
@@ -1407,16 +1486,18 @@ local Success, Error = xpcall(function()
 
 				for _, Attribute in next, Storage.Gun_Attributes do
 					if AttributeName == Attribute.Name and Attribute.Type == "number" then
-						-- dbgprint("GetAttribute called with", AttributeName)
 						return G_Option("GunMods_" .. AttributeName)
 					elseif AttributeName == Attribute.Name and Attribute.Type == "boolean" then
-						-- dbgprint("GetAttribute called with", AttributeName)
 						return G_Toggle("GunMods_" .. AttributeName)
-					-- elseif game.IsDescendantOf(LocalPlayer.Character, Args[1]) then
-					-- 	dbgprint("GetAttribute called but not found with", AttributeName)
-					-- 	-- return Old(...)
 					end
 				end
+
+				for _, Attribute in next, Storage.Melee_Attributes do
+					if AttributeName == Attribute.Name and Attribute.Type == "number" then
+						return G_Option("MeleeMods_" .. AttributeName)
+					end
+				end
+
 			end
 
 		end
@@ -1441,13 +1522,102 @@ local Success, Error = xpcall(function()
 		return Old(...)
 	end)
 
-	Cleaner(task.spawn(function()
-		while task.wait(1) do
-			if G_Toggle("HideName") then
-				Net.send("enter_character_creator")
+	HookMgr.RegisterHook("WalkspeedHook", Sprint.set_walk_speed, function(Old, ...)
+		if G_Toggle("NoSlow") then
+			local Args = {...}
+			if Args[1] < 8 then
+				return -- nuh uh
 			end
 		end
-	end))
+
+		return Old(...)
+	end)
+
+	HookMgr.RegisterHook("MeleeHitRegHook", Melee.get_hit_players, function(Old, ...)
+		local Args = {...}
+
+		local Tool = Args[1]
+		local Range = LocalPlayer.Character:FindFirstChildOfClass("Tool"):GetAttribute("Range") or 1
+
+		if G_Toggle("MeleeModificationEnabled") then
+			Range = G_Option("MeleeMods_Range")
+		end
+
+		if G_Toggle("MeleeRemoveConeCheck") then
+
+			local v35 = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+			local v36 = v35.Position
+			local v39 = {}
+			local VisualizerPart
+
+			if G_Toggle("VisualizeMelee") then
+				VisualizerPart = Instance.new("Part") -- i stg if you add a detection for this im gonna kill you
+				VisualizerPart.Name = "OutdoorCeiling"
+				VisualizerPart.Shape = Enum.PartType.Ball
+				VisualizerPart.Size = Vector3.new(Range * 2, Range * 2, Range * 2)
+				VisualizerPart.CanCollide = false
+				VisualizerPart.CanQuery = false
+				VisualizerPart.Anchored = true
+				VisualizerPart.Material = Enum.Material.ForceField
+				VisualizerPart.Color = Color3.new(1,0,0)
+				VisualizerPart.Transparency = 0.7
+				VisualizerPart.CFrame = v35.CFrame
+				VisualizerPart.Parent = workspace
+
+				Debris:AddItem(VisualizerPart, 0.5)
+			end
+
+			for _, v40 in Players:GetPlayers() do
+				if v40 ~= LocalPlayer then
+					local v41 = v40.Character
+					if v41 then
+						local v42 = v41:FindFirstChild("HumanoidRootPart")
+						local v43 = v41:FindFirstChildWhichIsA("Humanoid")
+						if v42 and (v43 and not v43:GetAttribute("IsDead")) then
+							if (v42.Position - v36).magnitude <= Range then
+								table.insert(v39, v40)
+							end
+						end
+					end
+				end
+			end
+
+			if VisualizerPart and #v39 > 0 then
+				VisualizerPart.Color = Color3.new(0,1,0)
+			end
+
+			return v39
+		end
+
+		return Old(Tool)
+	end)
+
+	HookMgr.RegisterHook("FireServerHook", Instance.new("RemoteEvent").FireServer, function(Old, ...)
+
+		local Args = {...}
+
+		local Call_Type = Args[2]
+
+		if Call_Type == "melee_attack" and G_Toggle("MeleeFixHitchance") then
+			local Hits = Args[4]
+
+			if #Hits > 0 then
+				Args[5] = Hits[1]:GetPivot()
+			end
+
+			local OldPivot = LocalPlayer.Character:GetPivot()
+
+			SignalYield(RunService.Heartbeat, 4, function()
+				LocalPlayer.Character:PivotTo(Args[5])
+			end)
+
+			LocalPlayer.Character:PivotTo(OldPivot)
+
+			return Old(unpack(Args))
+		end
+
+		return Old(...)
+	end)
 
 	--#endregion
 
@@ -1501,6 +1671,18 @@ local Success, Error = xpcall(function()
 
 	local CharacterGroup = Tabs.Main:AddRightGroupbox("Character")
 
+	CharacterGroup:AddToggle("Noclip", {
+		Text = "Noclip",
+		Default = false,
+		Tooltip = "Enables noclip for the player"
+	})
+
+	CharacterGroup:AddToggle("NoSlow", {
+		Text = "No Slowdown",
+		Default = false,
+		Tooltip = "Disables slowdowns"
+	})
+
 	CharacterGroup:AddToggle("InfiniteStamina", {
 		Text = "Infinite Stamina",
 		Default = false,
@@ -1527,23 +1709,7 @@ local Success, Error = xpcall(function()
 
 	local VulnerabilitiesGroup = Tabs.Main:AddLeftGroupbox("Vulnerabilities")
 
-	VulnerabilitiesGroup:AddToggle("HideName", {
-		Text = "Hide Name [SERVER]",
-		Default = false,
-		Tooltip = "Hides your name for everyone.",
-		Risky = true,
-		Callback = function(Value)
-			if Value then
-				Net.send("enter_character_creator")
-			else
-				Net.send("exit_character_creator")
-			end
-		end
-	})
-
-	VulnerabilitiesGroup:AddLabel({Text = "Hide name makes you unable to do damage.", DoesWrap = true})
-
-	VulnerabilitiesGroup:AddLabel("rest are patched :(")
+	VulnerabilitiesGroup:AddLabel("patched :(")
 
 	-- Automation tab
 
@@ -1580,6 +1746,43 @@ local Success, Error = xpcall(function()
 				Tooltip = "Enables " .. Attribute.Name .. " for guns"
 			})
 		end
+	end
+
+	local MeleeModificationsGroup = Tabs.Combat:AddLeftGroupbox("Melee Mods")
+
+	MeleeModificationsGroup:AddToggle("MeleeFixHitchance", {
+		Text = "Hitcheck Bypass",
+		Default = false,
+		Tooltip = "game has bad hitreg so probably use this"
+	})
+
+	MeleeModificationsGroup:AddToggle("MeleeRemoveConeCheck", {
+		Text = "Radius-Only HitReg",
+		Default = false,
+		Tooltip = "Removes the cone check for melee weapons"
+	})
+
+	MeleeModificationsGroup:AddToggle("VisualizeMelee", {
+		Text = "Visualize Melee",
+		Default = false,
+		Tooltip = "Shows melee radius."
+	})
+
+	MeleeModificationsGroup:AddToggle("MeleeModificationEnabled", {
+		Text = "Enabled",
+		Default = false,
+		Tooltip = "Enables melee modification features"
+	})
+
+	for _, Attribute in next, Storage.Melee_Attributes do
+		MeleeModificationsGroup:AddSlider("MeleeMods_" .. Attribute.Name, {
+			Text = Attribute.Name,
+			Default = Attribute.Min,
+			Min = Attribute.Min,
+			Max = Attribute.Max,
+			Rounding = 2,
+			Tooltip = "Sets the " .. Attribute.Name .. " for melee weapons"
+		})
 	end
 
 	local SilentAimGroup = Tabs.Combat:AddLeftGroupbox("Silent Aim")
