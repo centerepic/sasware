@@ -6,7 +6,7 @@ local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.0.0"
+local Version = "1.1.0"
 local SubVersion = " | BETA"
 local HIDN = 0
 
@@ -1355,8 +1355,10 @@ local Success, Error = xpcall(function()
 
 		for _ = 0, Times :: number do
 
+			-- print("Yielding for signal", Signal, "for", Times, "times.")
+
 			if Callback then
-				Callback()
+				pcall(Callback)
 			end
 
 			Signal:Wait()
@@ -1367,7 +1369,7 @@ local Success, Error = xpcall(function()
 
 		CharacterHooksInitialized = false
 
-		local BodyMoverConnection = ConnectionProxyMgr:YieldForConnection(Character.DescendantAdded, "PlayerWellbeing", 5)
+		local BodyMoverConnection = ConnectionProxyMgr:YieldForConnection(Character.DescendantAdded, "PlayerWellbeing", 1)
 		dbgprint("BodyMoverConnection:", BodyMoverConnection)
 		if BodyMoverConnection then
 			ConnectionProxyMgr:Register(BodyMoverConnection):Disable()
@@ -1375,7 +1377,7 @@ local Success, Error = xpcall(function()
 
 		local UpperTorso = Character:WaitForChild("UpperTorso") :: Part
 
-		local NoclipSignal = ConnectionProxyMgr:YieldForConnection(UpperTorso:GetPropertyChangedSignal("CanCollide"), "Animate", 5)
+		local NoclipSignal = ConnectionProxyMgr:YieldForConnection(UpperTorso:GetPropertyChangedSignal("CanCollide"), "Animate", 1)
 		dbgprint("NoclipConnection:", NoclipSignal)
 		if NoclipSignal then
 			ConnectionProxyMgr:Register(NoclipSignal):Disable()
@@ -1592,28 +1594,45 @@ local Success, Error = xpcall(function()
 		return Old(Tool)
 	end)
 
-	HookMgr.RegisterHook("FireServerHook", Instance.new("RemoteEvent").FireServer, function(Old, ...)
+	HookMgr.RegisterHook("NetSendHook", Net.send, function(Old, ...)
 
-		local Args = {...}
+		if not checkcaller() then
 
-		local Call_Type = Args[2]
+			local Args = {...}
 
-		if Call_Type == "melee_attack" and G_Toggle("MeleeFixHitchance") then
-			local Hits = Args[4]
+			local Call_Type = Args[1]
 
-			if #Hits > 0 then
-				Args[5] = Hits[1]:GetPivot()
+			if Call_Type == "melee_attack" and G_Toggle("MeleeFixHitchance") then
+				local Hits = Args[3]
+
+				if #Hits > 0 then
+					Args[4] = Hits[1].Character:GetPivot()
+				end
+
+				local OldPivot = LocalPlayer.Character:GetPivot()
+
+				SignalYield(RunService.Heartbeat, 2, function()
+					LocalPlayer.Character:PivotTo(Args[4])
+					-- print("Pivoted to", Args[5], os.clock())
+				end)
+
+				LocalPlayer.Character:PivotTo(OldPivot)
+
+				return Old(unpack(Args))
+			elseif Call_Type == "shoot_gun" and G_Toggle("SilentAimEnabled") then
+				local HitPart : BasePart?
+
+				if Aiming_Library.CurrentTarget then
+					HitPart = Aiming_Library.CurrentTarget:FindFirstChild(G_Option("SilentAimPart")) or Aiming_Library.CurrentTarget:FindFirstChild("HumanoidRootPart")
+					if HitPart then
+						Args[3] = CFrame.new(Camera.CFrame.Position, HitPart.Position)
+					end
+				end
+
+				return Old(unpack(Args))
+
 			end
 
-			local OldPivot = LocalPlayer.Character:GetPivot()
-
-			SignalYield(RunService.Heartbeat, 4, function()
-				LocalPlayer.Character:PivotTo(Args[5])
-			end)
-
-			LocalPlayer.Character:PivotTo(OldPivot)
-
-			return Old(unpack(Args))
 		end
 
 		return Old(...)
@@ -1709,6 +1728,46 @@ local Success, Error = xpcall(function()
 
 	local VulnerabilitiesGroup = Tabs.Main:AddLeftGroupbox("Vulnerabilities")
 
+	VulnerabilitiesGroup:AddButton("Snipe Airdrop", function()
+		-- .AirDropModel["Weapon Crate"].Model.BoxInteriorBottom.ProximityPrompt
+		local Airdrop = workspace:FindFirstChild("AirDropModel")
+
+		if Airdrop then
+			local Character = AssertCharacter()
+			local Root = Airdrop:FindFirstChild("Weapon Crate"):FindFirstChild("Model"):FindFirstChild("BoxInteriorBottom")
+			local ProximityPrompt = Root:FindFirstChild("ProximityPrompt")
+
+			local OriginalPosition = Character:GetPivot()
+
+			local TPCon = RunService.Heartbeat:Connect(function()
+				Character:PivotTo(Root.CFrame)
+			end)
+
+			task.wait(LocalPlayer:GetNetworkPing() + 0.3)
+
+			replicatesignal(ProximityPrompt.ButtonHoldEndedActionReplicated, LocalPlayer)
+
+			TPCon:Disconnect()
+
+			task.wait(ProximityPrompt.HoldDuration * 0.85)
+
+			TPCon = RunService.Heartbeat:Connect(function()
+				Character:PivotTo(Root.CFrame)
+			end)
+
+			task.wait(LocalPlayer:GetNetworkPing() + 0.3)
+
+			replicatesignal(ProximityPrompt.ButtonHoldEndedActionReplicated, LocalPlayer)
+			replicatesignal(ProximityPrompt.TriggeredActionReplicated, LocalPlayer)
+			replicatesignal(ProximityPrompt.TriggerEndedActionReplicated, LocalPlayer)
+
+			TPCon:Disconnect()
+			Character:PivotTo(OriginalPosition)
+
+		end
+
+	end)
+
 	VulnerabilitiesGroup:AddLabel("patched :(")
 
 	-- Automation tab
@@ -1751,7 +1810,7 @@ local Success, Error = xpcall(function()
 	local MeleeModificationsGroup = Tabs.Combat:AddLeftGroupbox("Melee Mods")
 
 	MeleeModificationsGroup:AddToggle("MeleeFixHitchance", {
-		Text = "Hitcheck Bypass",
+		Text = "HitSync",
 		Default = false,
 		Tooltip = "game has bad hitreg so probably use this"
 	})
