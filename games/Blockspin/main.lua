@@ -1308,6 +1308,9 @@ local Success, Error = xpcall(function()
 	local Crate = require(Game.CrateSystem.Crate)
 	local Sprint = require(Game.Sprint)
 
+	local Map = workspace:WaitForChild("Map")
+	local Tiles = Map:WaitForChild("Tiles")
+
 	Aiming_Library.Enabled = true
 	Aiming_Library.FOV = 60
 	Aiming_Library.Players = true
@@ -1426,6 +1429,14 @@ local Success, Error = xpcall(function()
 		local HashedName = HashKey .. tostring(Hash)
 		Instance:SetAttribute(HashedName, Value)
 		return HashedName
+	end
+
+	local function WaitForTable(Root: Instance, InstancePath: { string }, Timeout: number?)
+		local Instance = Root
+		for i, v in pairs(InstancePath) do
+			Instance = Instance:WaitForChild(v, Timeout)
+		end
+		return Instance
 	end
 
 	Cleaner(RunService.Heartbeat:Connect(function(DeltaTime)
@@ -1638,6 +1649,50 @@ local Success, Error = xpcall(function()
 		return Old(...)
 	end)
 
+	local CookFarmRoutine = coroutine.create(function()
+		local Prompt = WaitForTable(Tiles, {"ShoppingTile", "SteakHouse", "Interior", "Fridge", "Base", "Attachment", "ProximityPrompt"})
+		local Grill = WaitForTable(Tiles, {"ShoppingTile", "SteakHouse", "Interior", "Grill"})
+
+		while task.wait(0.1) do
+
+			if not G_Toggle("CookFarm") then
+				continue
+			end
+
+			pcall(function()
+
+				fireproximityprompt(Prompt)
+
+				for Attribute, _ in next, Grill:GetAttributes() do
+					for _, v in next, getconnections(Grill:GetAttributeChangedSignal(Attribute)) do
+						v:Disable()
+					end
+				end
+
+				LocalPlayer.Backpack.ChildAdded:Wait()
+
+				Net.send("start_grilling", Grill)
+
+				task.wait(0.3)
+
+				local CookTime = GetAttributeByName(Grill, "perfect_cook_time") - 0.3 -- hashing attributes is LAME when u dont even secure ur alg
+
+				task.wait(CookTime)
+
+				Net.send(
+					"finish_grilling",
+					Grill,
+					"Perfect"
+				)
+			
+			end)
+
+		end
+	end)
+
+	Cleaner(CookFarmRoutine)
+	coroutine.resume(CookFarmRoutine)
+
 	--#endregion
 
 	--#region UI Initialization
@@ -1774,7 +1829,13 @@ local Success, Error = xpcall(function()
 
 	local AutomationGroup = Tabs.Automation:AddRightGroupbox("Automation")
 
-	AutomationGroup:AddLabel("coming soon im lazy")
+	AutomationGroup:AddToggle("CookFarm", {
+		Text = "Cook Farm",
+		Default = false,
+		Tooltip = "Automatically cooks food"
+	})
+
+	AutomationGroup:AddLabel("YOU MUST BE STANDING NEAR FRIDGE AND ON THE JOB TO WORK", true)
 
 	-- Combat tab
 
