@@ -6,7 +6,7 @@ local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.1.0"
+local Version = "1.2.0"
 local SubVersion = " | BETA"
 local HIDN = 0
 
@@ -30,41 +30,51 @@ local function GHID()
 	return HIDN
 end
 
-local function G_Toggle(ToggleName : string) : boolean
-
+local function G_Toggle(ToggleName: string): boolean
 	if not getgenv().Library then
-		repeat wait() until getgenv().Library
+		repeat
+			wait()
+		until getgenv().Library
 	end
 
 	if not getgenv().Library.Toggles then
-		repeat wait() until getgenv().Library.Toggles
+		repeat
+			wait()
+		until getgenv().Library.Toggles
 	end
 
 	if not getgenv().Library.Toggles[ToggleName] then
-		repeat wait() until getgenv().Library.Toggles[ToggleName]
+		repeat
+			wait()
+		until getgenv().Library.Toggles[ToggleName]
 	end
 
 	return getgenv().Library.Toggles[ToggleName].Value
 end
 
-local function G_Option(OptionName : string) : any
-
+local function G_Option(OptionName: string): any
 	if not getgenv().Library then
-		repeat wait() until getgenv().Library
+		repeat
+			wait()
+		until getgenv().Library
 	end
 
 	if not getgenv().Library.Options then
-		repeat wait() until getgenv().Library.Options
+		repeat
+			wait()
+		until getgenv().Library.Options
 	end
 
 	if not getgenv().Library.Options[OptionName] then
-		repeat wait() until getgenv().Library.Options[OptionName]
+		repeat
+			wait()
+		until getgenv().Library.Options[OptionName]
 	end
 
 	return getgenv().Library.Options[OptionName].Value
 end
 
-local function HookSwitch(Hooking : (...any) -> ...any, NoHooking : (...any) -> ...any)
+local function HookSwitch(Hooking: (...any) -> ...any, NoHooking: (...any) -> ...any)
 	if HOOKING_ENABLED then
 		return Hooking()
 	else
@@ -72,7 +82,7 @@ local function HookSwitch(Hooking : (...any) -> ...any, NoHooking : (...any) -> 
 	end
 end
 
-local function Stringify(Values : {any}) : {string}
+local function Stringify(Values: { any }): { string }
 	local Stringified = {}
 	for Index, Value in next, Values do
 		table.insert(Stringified, tostring(Value))
@@ -80,7 +90,7 @@ local function Stringify(Values : {any}) : {string}
 	return Stringified
 end
 
-local function flen(Table) : number
+local function flen(Table): number
 	local Count = 0
 	for _ in next, Table do
 		Count += 1
@@ -91,7 +101,7 @@ end
 local function dbgprint(...)
 	if DEBUGGING then
 		if USERCONSOLE then
-			rconsoleprint("[DEBUGGING] " .. table.concat(Stringify({...}), " "))
+			rconsoleprint("[DEBUGGING] " .. table.concat(Stringify({ ... }), " "))
 		else
 			dbgprint("[DEBUGGING]", ...)
 		end
@@ -101,7 +111,7 @@ end
 local function dbgwarn(...)
 	if DEBUGGING then
 		if USERCONSOLE then
-			rconsolewarn("[DEBUGGING] " .. table.concat(Stringify({...}), " "))
+			rconsolewarn("[DEBUGGING] " .. table.concat(Stringify({ ... }), " "))
 		else
 			warn("[DEBUGGING]", ...)
 		end
@@ -110,7 +120,7 @@ end
 
 local function sprint(...)
 	if USERCONSOLE then
-		rconsoleprint("[SASWARE] " .. table.concat(Stringify({...}), " "))
+		rconsoleprint("[SASWARE] " .. table.concat(Stringify({ ... }), " "))
 	else
 		dbgprint("[SASWARE]", ...)
 	end
@@ -118,7 +128,7 @@ end
 
 local function swarn(...)
 	if USERCONSOLE then
-		rconsolewarn("[SASWARE] " .. table.concat(Stringify({...}), " ") .. "\n")
+		rconsolewarn("[SASWARE] " .. table.concat(Stringify({ ... }), " ") .. "\n")
 	else
 		warn("[SASWARE]", ...)
 	end
@@ -126,13 +136,13 @@ end
 
 local function ssuccess(...)
 	if USERCONSOLE then
-		rconsoleinfo("[SASWARE] " .. table.concat(Stringify({...}), " ") .. "\n")
+		rconsoleinfo("[SASWARE] " .. table.concat(Stringify({ ... }), " ") .. "\n")
 	else
 		dbgprint("[SASWARE]", ...)
 	end
 end
 
-local function flen(Table) : number
+local function flen(Table): number
 	local Count = 0
 	for _ in next, Table do
 		Count += 1
@@ -140,8 +150,8 @@ local function flen(Table) : number
 	return Count
 end
 
-local function mfind(Table, ...) : boolean
-	local Values = {...}
+local function mfind(Table, ...): boolean
+	local Values = { ... }
 
 	for _, Value in next, Values do
 		if not table.find(Table, Value) then
@@ -173,12 +183,12 @@ local Cleaner = {
 		["Instance"] = true,
 		["table"] = true,
 		["function"] = true,
-		["thread"] = true
+		["thread"] = true,
 	},
-	CleanEvent = Instance.new("BindableEvent")
+	CleanEvent = Instance.new("BindableEvent"),
 }
 
-function Cleaner.Register(Object : any)
+function Cleaner.Register(Object: any)
 	if not Cleaner.AllowedTypes[typeof(Object)] then
 		swarn("Attempted to register an invalid object type:", typeof(Object))
 		return
@@ -194,7 +204,7 @@ function Cleaner.Register(Object : any)
 	return {
 		Clean = function()
 			Cleaner.CleanOne(Object)
-		end
+		end,
 	}
 end
 
@@ -220,7 +230,7 @@ function Cleaner.Clean()
 	Cleaner.CleanEvent:Fire()
 end
 
-function Cleaner.CleanOne(Object : any)
+function Cleaner.CleanOne(Object: any)
 	if not Cleaner.AllowedTypes[typeof(Object)] then
 		swarn("Attempted to clean an invalid object type:", typeof(Object))
 		return
@@ -253,10 +263,10 @@ function Cleaner.GetCleanEvent()
 end
 
 setmetatable(Cleaner, {
-	__call = function(self, Object : any)
+	__call = function(self, Object: any)
 		self.Register(Object)
 		return Object
-	end
+	end,
 })
 
 --#endregion
@@ -268,30 +278,38 @@ local HookMgr = {
 	GameMT = getrawmetatable(game),
 }
 
-HookMgr.RegisterHook = function(HookName : string, FunctionReference : (...any) -> (...any), Hook : (Original : (...any) -> (...any), ...any) -> (...any)) : {Original : (...any) -> (...any), Reference : (...any) -> (...any)}
-	local OriginalFunction : (...any) -> (...any)
+HookMgr.RegisterHook = function(
+	HookName: string,
+	FunctionReference: (...any) -> ...any,
+	Hook: (Original: (...any) -> ...any, ...any) -> ...any
+): { Original: (...any) -> ...any, Reference: (...any) -> ...any }
+	local OriginalFunction: (...any) -> ...any
 
 	if HOOKING_ENABLED then
 		local HookKey = "HookMgr_Hook_" .. HookName
 		local OriginalKey = "HookMgr_Original_" .. HookName
-		
+
 		shared.HookRegistry = shared.HookRegistry or {}
-		
+
 		-- _G.__HOOK_KEY = HookKey
 		-- _G.__ORIGINAL_KEY = OriginalKey
-		
+
 		shared.HookRegistry[HookKey] = Hook
 
 		local Success, Error = pcall(function()
-
 			-- function __HookWrapper(...)
 			-- 	return shared.HookRegistry[_G.__HOOK_KEY]( shared.HookRegistry[_G.__ORIGINAL_KEY], ... )
-			-- end			
+			-- end
 
 			-- dbgprint(`return shared.HookRegistry["{HookKey}"]( shared.HookRegistry["{OriginalKey}"], ... )`)
 			-- dbgprint(`return function(...) return shared.HookRegistry["{HookKey}"]( shared.HookRegistry["{OriginalKey}"], ... ) end`)
 
-			OriginalFunction = hookfunction(FunctionReference, loadstring(`return function(...) return shared.HookRegistry["{HookKey}"]( shared.HookRegistry["{OriginalKey}"], ... ) end`)())
+			OriginalFunction = hookfunction(
+				FunctionReference,
+				loadstring(
+					`return function(...) return shared.HookRegistry["{HookKey}"]( shared.HookRegistry["{OriginalKey}"], ... ) end`
+				)()
+			)
 		end)
 
 		if not Success then
@@ -311,13 +329,13 @@ HookMgr.RegisterHook = function(HookName : string, FunctionReference : (...any) 
 
 	HookMgr.Registry[HookName] = {
 		Original = OriginalFunction or FunctionReference,
-		Reference = FunctionReference
+		Reference = FunctionReference,
 	}
 
 	return HookMgr.Registry[HookName]
 end
 
-HookMgr.UnregisterHook = function(HookName : string)
+HookMgr.UnregisterHook = function(HookName: string)
 	if HOOKING_ENABLED then
 		local RegistryEntry = HookMgr.Registry[HookName]
 
@@ -364,7 +382,7 @@ end
 
 local ConnectionProxyMgr = {
 	Registry = {},
-	Id = 0
+	Id = 0,
 }
 
 function ConnectionProxyMgr._requestId()
@@ -373,7 +391,6 @@ function ConnectionProxyMgr._requestId()
 end
 
 function ConnectionProxyMgr._newProxyHandler(ConnectionProxy)
-
 	local Id = ConnectionProxyMgr._requestId()
 
 	local Handler = {
@@ -414,12 +431,11 @@ function ConnectionProxyMgr:Clear()
 	end
 end
 
-function ConnectionProxyMgr:YieldForConnection(Signal : RBXScriptSignal, SourceNeedle : string, Timeout : number?)
+function ConnectionProxyMgr:YieldForConnection(Signal: RBXScriptSignal, SourceNeedle: string, Timeout: number?)
 	local Start = os.clock()
 
 	while task.wait() do
-
-		local Connections = getconnections(Signal) :: {any} -- linter thinks it returns connections instead of proxies
+		local Connections = getconnections(Signal) :: { any } -- linter thinks it returns connections instead of proxies
 		for _, Connection in next, Connections do
 			local Function = Connection.Function
 			if Function then
@@ -428,15 +444,13 @@ function ConnectionProxyMgr:YieldForConnection(Signal : RBXScriptSignal, SourceN
 				end
 			end
 		end
-		
+
 		if Timeout and os.clock() - Start >= Timeout then
 			return nil
 		end
-
 	end
 
 	return nil
-
 end
 --#endregion
 
@@ -449,11 +463,11 @@ do
 	local Players = game:GetService("Players")
 	local LocalPlayer = Players.LocalPlayer
 	local Camera = workspace.CurrentCamera
-	
+
 	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 		Camera = workspace.CurrentCamera
 	end)
-	
+
 	local ESP = {
 		Config = {
 			Enabled = false,
@@ -469,19 +483,18 @@ do
 			UseTeamColor = false,
 			MaxDistance = 500,
 			FadeDistance = 100,
-		}
+		},
 	}
-	
+
 	-- Collection Library
 	local Collection = {}
 	local RenderQueue = {}
-	
-	local function Collect(Item : RBXScriptConnection | thread)
+
+	local function Collect(Item: RBXScriptConnection | thread)
 		table.insert(Collection, Item)
 	end
-	
-	local function Unload()
 
+	local function Unload()
 		for _, Item in next, Collection do
 			if typeof(Item) == "RBXScriptConnection" then
 				Item:Disconnect()
@@ -495,10 +508,9 @@ do
 			Box:Destroy()
 			RenderQueue[Index] = nil
 		end
-
 	end
-	
-	local function Cleanup(Item : any)
+
+	local function Cleanup(Item: any)
 		if typeof(Item) == "Instance" then
 			Item:Destroy()
 			return
@@ -523,28 +535,28 @@ do
 			return
 		end)
 	end
-	
+
 	-- Function Setup
-	
-	local function Distance(Position : Vector3)
+
+	local function Distance(Position: Vector3)
 		return (Position - Camera.CFrame.Position).Magnitude
 	end
-	
-	local function ToV2(Vector : Vector3) : Vector2
+
+	local function ToV2(Vector: Vector3): Vector2
 		return Vector2.new(Vector.X, Vector.Y)
 	end
-	
-	local function WTVP(Position : Vector3) : (Vector3, boolean)
+
+	local function WTVP(Position: Vector3): (Vector3, boolean)
 		return Camera:WorldToViewportPoint(Position)
 	end
-	
-	local function WTVP2D(Position : Vector3) : Vector2
+
+	local function WTVP2D(Position: Vector3): Vector2
 		local ScreenPosition, _ = Camera:WorldToViewportPoint(Position)
 		local Vector = ToV2(ScreenPosition)
 		return Vector
 	end
-	
-	local function EnsureInstance(Instance : Instance)
+
+	local function EnsureInstance(Instance: Instance)
 		if not Instance then
 			return false
 		end
@@ -556,13 +568,12 @@ do
 		end
 		return true
 	end
-	
-	local function GetPlayer(Character : Model) : Player?
+
+	local function GetPlayer(Character: Model): Player?
 		return Players:GetPlayerFromCharacter(Character)
 	end
-	
-	local function GetColor(Model : Model, Box : any) : Color3
-		
+
+	local function GetColor(Model: Model, Box: any): Color3
 		if Box.IsPlayer then
 			if ESP.Config.UseTeamColor then
 				local Player = GetPlayer(Model)
@@ -580,11 +591,11 @@ do
 
 		return ESP.Config.BoxColor
 	end
-	
-	local function CalculateTransparency(Distance : number) : number
+
+	local function CalculateTransparency(Distance: number): number
 		local MaxDistance = ESP.Config.MaxDistance
 		local FadeDistance = ESP.Config.FadeDistance
-		
+
 		if Distance >= MaxDistance then
 			return 0
 		elseif Distance > (MaxDistance - FadeDistance) then
@@ -593,8 +604,8 @@ do
 			return 1
 		end
 	end
-	
-	local function CreateBox(Root : PVInstance, Config : {any})
+
+	local function CreateBox(Root: PVInstance, Config: { any })
 		local Box = {
 			Root = Root,
 			BoxType = ESP.Config.BoxType,
@@ -602,25 +613,25 @@ do
 			DrawingObject = nil,
 			TextObject = nil,
 			Color = nil,
-			IsPlayer = false
+			IsPlayer = false,
 		}
 
 		assert(Box.Root.Parent and Box.Root.Parent:IsA("Model"), "Root must be a descendant of a Model")
-		
+
 		if Config then
 			for Index, Value in Config do
 				Box[Index] = Value
 			end
 		end
-		
+
 		Box.BoxColor = GetColor(Box.Root.Parent, Box)
 
-		function Box:GetPivot() : CFrame
+		function Box:GetPivot(): CFrame
 			local Pos, _ = Box.Root.Parent:GetBoundingBox() :: CFrame, Vector3
 			return Pos
 		end
 
-		local function GetScreen(Model : Model)
+		local function GetScreen(Model: Model)
 			local Pivot = Model:GetPivot()
 			local Position = Pivot.Position
 			local ScreenPosition, Visible = WTVP(Position)
@@ -630,23 +641,23 @@ do
 		local function Create2DBox()
 			local Drawing = Drawing.new("Quad")
 			local DrawingObject = {
-				Drawing = Drawing
+				Drawing = Drawing,
 			}
 			function DrawingObject.Update()
 				local Center, Visible = GetScreen(Box.Root.Parent)
 				Visible = Visible and ESP.Config.Boxes
 				if Visible then
 					Drawing.Visible = true
-					local ESPSize : Vector2 = ESP.Config.StaticSize
+					local ESPSize: Vector2 = ESP.Config.StaticSize
 					local Distance = Distance(Box:GetPivot().Position)
 					local FieldOfView = Camera.FieldOfView
 					if Distance > ESP.Config.MaxDistance then
 						Drawing.Visible = false
 						return
 					end
-					
+
 					Drawing.Transparency = CalculateTransparency(Distance)
-					
+
 					local Size = ESPSize / (Distance / 100) * (FieldOfView / 70)
 					local TopLeft = Vector2.new(Center.X - Size.X / 2, Center.Y - Size.Y / 2)
 					local TopRight = Vector2.new(Center.X + Size.X / 2, Center.Y - Size.Y / 2)
@@ -665,7 +676,7 @@ do
 		local function CreateBox3D()
 			local Drawing = Drawing.new("Quad")
 			local DrawingObject = {
-				Drawing = Drawing
+				Drawing = Drawing,
 			}
 			function DrawingObject.Update()
 				local _, Visible = GetScreen(Box.Root.Parent)
@@ -679,9 +690,9 @@ do
 						Drawing.Visible = false
 						return
 					end
-					
+
 					Drawing.Transparency = CalculateTransparency(Distance)
-					
+
 					local TopLeft = WTVP2D((Pivot * CFrame.new(ESPSize.X / 2, ESPSize.Y / 2, 0)).Position)
 					local TopRight = WTVP2D((Pivot * CFrame.new(-ESPSize.X / 2, ESPSize.Y / 2, 0)).Position)
 					local BottomRight = WTVP2D((Pivot * CFrame.new(-ESPSize.X / 2, -ESPSize.Y / 2, 0)).Position)
@@ -699,12 +710,12 @@ do
 		local function CreateBox3DFull()
 			local Lines = {}
 			local DrawingObject = {
-				Drawing = Lines
+				Drawing = Lines,
 			}
 			for i = 1, 12 do
 				Lines[i] = Drawing.new("Line")
 				Lines[i].Thickness = 1
-				Lines[i].Transparency = 1 
+				Lines[i].Transparency = 1
 			end
 			function DrawingObject.Update()
 				local _, Visible = GetScreen(Box.Root.Parent)
@@ -722,15 +733,15 @@ do
 						end
 						return
 					end
-					
+
 					local Transparency = CalculateTransparency(Distance)
 					for _, Line in ipairs(Lines) do
 						Line.Transparency = Transparency
 					end
-					
-					local sizeX = ESPSize.X/2
-					local sizeY = ESPSize.Y/2 
-					local sizeZ = ESPSize.Z/2
+
+					local sizeX = ESPSize.X / 2
+					local sizeY = ESPSize.Y / 2
+					local sizeZ = ESPSize.Z / 2
 					local Top1 = WTVP2D((Pivot * CFrame.new(-sizeX, sizeY, -sizeZ)).Position)
 					local Top2 = WTVP2D((Pivot * CFrame.new(-sizeX, sizeY, sizeZ)).Position)
 					local Top3 = WTVP2D((Pivot * CFrame.new(sizeX, sizeY, sizeZ)).Position)
@@ -740,7 +751,7 @@ do
 					local Bottom3 = WTVP2D((Pivot * CFrame.new(sizeX, -sizeY, sizeZ)).Position)
 					local Bottom4 = WTVP2D((Pivot * CFrame.new(sizeX, -sizeY, -sizeZ)).Position)
 					Lines[1].From, Lines[1].To = Top1, Top2
-					Lines[2].From, Lines[2].To = Top2, Top3  
+					Lines[2].From, Lines[2].To = Top2, Top3
 					Lines[3].From, Lines[3].To = Top3, Top4
 					Lines[4].From, Lines[4].To = Top4, Top1
 					Lines[5].From, Lines[5].To = Bottom1, Bottom2
@@ -751,7 +762,7 @@ do
 					Lines[10].From, Lines[10].To = Bottom2, Top2
 					Lines[11].From, Lines[11].To = Bottom3, Top3
 					Lines[12].From, Lines[12].To = Bottom4, Top4
-					
+
 					local BoxColor = GetColor(Box.Root.Parent, Box)
 					for _, Line in ipairs(Lines) do
 						Line.Color = BoxColor
@@ -766,9 +777,7 @@ do
 			return DrawingObject
 		end
 		function Box:Update()
-
 			if not EnsureInstance(self.Root) then
-
 				if self.BoxType == "3DFull" then
 					for _, Line in ipairs(self.DrawingObject.Drawing) do
 						Line.Visible = false
@@ -785,7 +794,6 @@ do
 			end
 
 			if not ESP.Config.Enabled then
-
 				if self.BoxType == "3DFull" then
 					for _, Line in ipairs(self.DrawingObject.Drawing) do
 						Line.Visible = false
@@ -802,7 +810,6 @@ do
 			end
 
 			if self.IsPlayer and not ESP.Config.Players then
-
 				if self.BoxType == "3DFull" then
 					for _, Line in ipairs(self.DrawingObject.Drawing) do
 						Line.Visible = false
@@ -834,7 +841,6 @@ do
 
 							self.TextObject.Center = true
 							self.TextObject.Outline = true
-
 						end
 					end
 
@@ -842,7 +848,7 @@ do
 					local TextPosition = self.Root.Position + Vector3.new(0, 5, 0)
 					local ScreenPos, OnScreen = WTVP(TextPosition)
 					local Distance = Distance(self.Root.Position)
-					
+
 					if Distance > ESP.Config.MaxDistance then
 						self.TextObject.Visible = false
 					else
@@ -881,7 +887,7 @@ do
 					end
 				end
 			end
-			
+
 			if self.BoxType ~= "3DFull" then
 				self.DrawingObject.Drawing.Color = GetColor(self.Root.Parent, self)
 			end
@@ -893,7 +899,6 @@ do
 		RenderQueue[Index] = Box
 
 		function Box:Destroy()
-
 			RenderQueue[Index] = nil
 
 			if self.TextObject then
@@ -920,17 +925,19 @@ do
 		else
 			error("Invalid BoxType")
 		end
-		
+
 		return Box
 	end
-	
-	local function CreateESP(Player : Player, Config : {any}) : {any}
+
+	local function CreateESP(Player: Player, Config: { any }): { any }
 		local Character = Player.Character
 
 		dbgprint("Creating ESP for player", Player)
 
 		if not Character then
-			repeat task.wait() until Player.Character
+			repeat
+				task.wait()
+			until Player.Character
 			Character = Player.Character
 		end
 
@@ -942,8 +949,8 @@ do
 
 		local Humanoid = Character:WaitForChild("Humanoid") :: Humanoid
 
-		local OnDied; OnDied = function()
-
+		local OnDied
+		OnDied = function()
 			dbgprint("Recreating ESP for player", Player)
 
 			Humanoid = nil
@@ -951,8 +958,8 @@ do
 			Box:Destroy()
 			Box = nil
 
-			repeat 
-				task.wait() 
+			repeat
+				task.wait()
 				Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
 			until Player.Character and Humanoid and Humanoid.Health > 0
 
@@ -964,13 +971,17 @@ do
 			dbgprint("ESP recreated for player", Player)
 
 			task.spawn(function()
-				repeat task.wait() until Humanoid.Health <= 0
+				repeat
+					task.wait()
+				until Humanoid.Health <= 0
 				OnDied()
 			end)
 		end
 
 		task.spawn(function()
-			repeat task.wait() until Humanoid.Health <= 0
+			repeat
+				task.wait()
+			until Humanoid.Health <= 0
 			OnDied()
 		end)
 
@@ -983,7 +994,7 @@ do
 
 		return Box
 	end
-	
+
 	local function Update()
 		for _, Box in pairs(RenderQueue) do
 			pcall(function()
@@ -991,20 +1002,19 @@ do
 			end)
 		end
 	end
-	
+
 	ESP.Config.Enabled = false
 	ESP.Config.Players = false
 	ESP.Config.Boxes = false
-	
+
 	Collect(RunService.RenderStepped:Connect(Update))
-	
+
 	for _, Player in ipairs(Players:GetPlayers()) do
-		
 		if Player ~= LocalPlayer then
 			task.defer(function()
 				local _ = CreateESP(Player, {
 					IsPlayer = true,
-					DynamicColor = function(Model : Model)
+					DynamicColor = function(Model: Model)
 						local Color = Color3.new(0, 0, 0)
 						local Humanoid = Model:FindFirstChildOfClass("Humanoid") :: Humanoid
 						local ForceField = Model:FindFirstChild("ForceField") :: ForceField
@@ -1023,7 +1033,7 @@ do
 						end
 
 						return Color
-					end
+					end,
 				})
 			end)
 		end
@@ -1033,7 +1043,7 @@ do
 		if Player ~= LocalPlayer then
 			local _ = CreateESP(Player, {
 				IsPlayer = true,
-				DynamicColor = function(Model : Model)
+				DynamicColor = function(Model: Model)
 					local Color = Color3.new(0, 0, 0)
 					local Humanoid = Model:FindFirstChildOfClass("Humanoid") :: Humanoid
 					local ForceField = Model:FindFirstChild("ForceField") :: ForceField
@@ -1052,7 +1062,7 @@ do
 					end
 
 					return Color
-				end
+				end,
 			})
 		end
 	end))
@@ -1086,7 +1096,7 @@ do
 		DynamicFOV = true,
 		FOVColor = Color3.fromRGB(255, 255, 255),
 		AimTracerColor = Color3.fromRGB(255, 0, 0),
-		CurrentTarget = nil
+		CurrentTarget = nil,
 	}
 
 	local InternalFOV = Aiming.FOV
@@ -1103,14 +1113,13 @@ do
 	FOVTracer.Thickness = 2
 
 	local function UpdateFOV()
-
 		if Aiming.ShowFOV then
 			if Aiming.DynamicFOV then
 				InternalFOV = Aiming.FOV * (70 / Camera.FieldOfView)
 			else
 				InternalFOV = Aiming.FOV
 			end
-		
+
 			FOVCircle.Visible = true
 			FOVCircle.Radius = InternalFOV
 			FOVCircle.Color = Aiming.FOVColor
@@ -1118,16 +1127,14 @@ do
 		else
 			FOVCircle.Visible = false
 		end
-
 	end
 
-	local function GetCharactersInViewport() : {{Character: Model, Position: Vector2}}
+	local function GetCharactersInViewport(): { { Character: Model, Position: Vector2 } }
 		local ToProcess = {}
 		local CharactersOnScreen = {}
 
 		if Aiming.Players then
 			for _, Player in ipairs(Players:GetPlayers()) do
-
 				if Player == Players.LocalPlayer then
 					continue
 				end
@@ -1146,11 +1153,15 @@ do
 			-- end
 
 			for _, NPC in next, game:GetService("CollectionService"):GetTagged("NPC") do
-				if NPC:IsDescendantOf(workspace) and NPC:IsA("Model") and NPC:FindFirstChild("HumanoidRootPart") and game:GetService("CollectionService"):HasTag(NPC, "ActiveCharacter") then
+				if
+					NPC:IsDescendantOf(workspace)
+					and NPC:IsA("Model")
+					and NPC:FindFirstChild("HumanoidRootPart")
+					and game:GetService("CollectionService"):HasTag(NPC, "ActiveCharacter")
+				then
 					table.insert(ToProcess, NPC)
 				end
 			end
-
 		end
 
 		for _, Character in ipairs(ToProcess) do
@@ -1159,7 +1170,7 @@ do
 			if OnScreen then
 				table.insert(CharactersOnScreen, {
 					Character = Character,
-					Position = Vector2.new(Position.X, Position.Y)
+					Position = Vector2.new(Position.X, Position.Y),
 				})
 			end
 		end
@@ -1167,11 +1178,11 @@ do
 		return CharactersOnScreen
 	end
 
-	local function DistanceFromMouse(Position : Vector2) : number
+	local function DistanceFromMouse(Position: Vector2): number
 		return (UserInputService:GetMouseLocation() - Position).Magnitude
 	end
 
-	local function GetPlayersInFOV() : {{Character: Model, Distance: number, Position: Vector2}}
+	local function GetPlayersInFOV(): { { Character: Model, Distance: number, Position: Vector2 } }
 		local Characters = GetCharactersInViewport()
 		local PlayersInFOV = {}
 
@@ -1181,7 +1192,7 @@ do
 				table.insert(PlayersInFOV, {
 					Character = Character.Character,
 					Distance = Distance,
-					Position = Character.Position
+					Position = Character.Position,
 				})
 			end
 		end
@@ -1189,7 +1200,7 @@ do
 		return PlayersInFOV
 	end
 
-	local function GetClosestPlayer() : (Model, number, Vector2)
+	local function GetClosestPlayer(): (Model, number, Vector2)
 		local PlayersInFOV = GetPlayersInFOV()
 		local ClosestPlayer = nil
 		local ClosestDistance = math.huge
@@ -1207,7 +1218,6 @@ do
 	end
 
 	local Connection = RunService.RenderStepped:Connect(function()
-
 		if Aiming.Enabled then
 			UpdateFOV()
 			local ClosestPlayer, Distance, Position = GetClosestPlayer()
@@ -1225,7 +1235,6 @@ do
 			FOVTracer.Visible = false
 			Aiming.CurrentTarget = nil
 		end
-
 	end)
 
 	local function Unload()
@@ -1247,26 +1256,31 @@ local Success, Error = xpcall(function()
 	local CharacterHooksInitialized = false
 
 	local HookTargets = {
-		"sprint_bar"
+		"sprint_bar",
 	}
 
 	local GameRegistry = {
-		consume_stamina = {}
+		consume_stamina = {},
+		log_fire = {},
 	}
 
 	local Storage = {
 		Originals = {},
 		Gun_Attributes = {
-			{Name = "Accuracy", Type = "number", Max = 1, Min = 0.2},
-			{Name = "Automatic", Type = "boolean"},
-			{Name = "FireRate", Type = "number", Max = 5000, Min = 100},
-			{Name = "Range", Type = "number", Max = 2000, Min = 50},
-			{Name = "Recoil", Type = "number", Max = 5, Min = 0}
+			{ Name = "Accuracy", Type = "number", Max = 1, Min = 0.2 },
+			{ Name = "Automatic", Type = "boolean" },
+			{ Name = "FireRate", Type = "number", Max = 5000, Min = 100 },
+			{ Name = "Range", Type = "number", Max = 2000, Min = 50 },
+			{ Name = "Recoil", Type = "number", Max = 5, Min = 0 },
 		},
 		Melee_Attributes = {
-			{Name = "ConeAngle", Type = "number", Min = 30, Max = 360},
-			{Name = "Range", Type = "number", Min = 1, Max = 20},
+			{ Name = "ConeAngle", Type = "number", Min = 30, Max = 360 },
+			{ Name = "Range", Type = "number", Min = 1, Max = 20 },
 			-- {Name = "Speed", Type = "number", Min = 0.1, Max = 5}
+		},
+		Blacklisted_Network_Calls = {
+			["replicate_billboard_gui"] = true,
+			["replicate_stamina_bar"] = true
 		}
 	}
 
@@ -1279,6 +1293,21 @@ local Success, Error = xpcall(function()
 						table.insert(GameRegistry.consume_stamina, rawget(v, "consume_stamina"))
 					end
 				end)
+			elseif type(v) == "function" and islclosure(v) and (not isexecutorclosure(v)) then
+
+				if not debug.info(v, "s"):match("Gun") then
+					continue
+				end
+
+				local Constants = debug.getconstants(v)
+				if #Constants >= 2 then
+					if Constants[1] == "os" and Constants[2] == "clock" then
+						if debug.info(v, "n") == "log_fire" then
+							swarn("Gun log_fire function found @", v, debug.info(v, "n"))
+							table.insert(GameRegistry.log_fire, v)
+						end
+					end
+				end
 			end
 		end
 	else
@@ -1293,10 +1322,12 @@ local Success, Error = xpcall(function()
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local RunService = game:GetService("RunService")
 	local UserInputService = game:GetService("UserInputService")
+	local ProximityPromptService = game:GetService("ProximityPromptService")
 	local CollectionService = game:GetService("CollectionService")
 	local LocalPlayer = Players.LocalPlayer
 	local Camera = workspace.CurrentCamera
 	local Debris = game:GetService("Debris")
+	local YieldBind = Instance.new("BindableEvent")
 
 	local Modules = ReplicatedStorage:WaitForChild("Modules")
 	local Core = Modules:WaitForChild("Core")
@@ -1307,6 +1338,8 @@ local Success, Error = xpcall(function()
 	local Melee = require(Game.ItemTypes:WaitForChild("Melee"))
 	local Crate = require(Game.CrateSystem.Crate)
 	local Sprint = require(Game.Sprint)
+
+	local RegisteredFirearms = {} -- hoodlumz with they registered firearmz (im losing it)
 
 	local Map = workspace:WaitForChild("Map")
 	local Tiles = Map:WaitForChild("Tiles")
@@ -1319,45 +1352,74 @@ local Success, Error = xpcall(function()
 
 	--#region Defining game-related runtime constants / functions
 
-	HookSwitch(
-		function()
-			for _, Function in next, GameRegistry.consume_stamina do
-
-				local Sprint_Bar = debug.getupvalue(Function, 2).sprint_bar
-				if Sprint_Bar then
-					swarn("Sprint bar found @", Sprint_Bar)
+	local function SetGunFireRate(Gun : Tool)
+		local Rate = Gun:GetAttribute("FireRate") :: number
+		local Connections = getconnections(Gun.Equipped)
+		for _, Connection in next, Connections do
+			if Connection.Function and type(Connection.Function) == "function" then
+				local Upvalues = debug.getupvalues(Connection.Function)
+				if #Upvalues >= 15 then
+					print("Gun equipped function found @", Connection.Function)
+					local WaitFunction = debug.getupvalue(Connection.Function, 15)
+					debug.setupvalue(WaitFunction, 7, G_Option("GunMods_FireRate") and (60 / G_Option("GunMods_FireRate")) or (60 / Rate))
 				end
-
-				HookMgr.RegisterHook("inf_stamina" .. tostring(Sprint_Bar.update), Sprint_Bar.update, function(Old, ...)
-					if G_Toggle("InfiniteStamina") then
-						return Old(function()
-							return 1
-						end)
-					else
-						return Old(...)
-					end
-				end)
 			end
-		end,
-		function()
-			Cleaner(LocalPlayer:GetAttributeChangedSignal("StaminaConsumeMultiplier"):Connect(function()
-				if G_Toggle("InfiniteStamina") then
-					if LocalPlayer:GetAttribute("StaminaConsumeMultiplier") ~= 0 then
-						LocalPlayer:SetAttribute("StaminaConsumeMultiplier", 0)
-					end
-				end
-			end))
 		end
-	)
+	end
 
-	local function SignalYield(Signal : RBXScriptSignal, Times : number?, Callback : ((any) -> nil)?)
+	HookSwitch(function()
+		for _, Function in next, GameRegistry.consume_stamina do
+			local Sprint_Bar = debug.getupvalue(Function, 2).sprint_bar
+			if Sprint_Bar then
+				swarn("Sprint bar found @", Sprint_Bar)
+			end
 
+			HookMgr.RegisterHook("inf_stamina" .. tostring(Sprint_Bar.update), Sprint_Bar.update, function(Old, ...)
+				if G_Toggle("InfiniteStamina") then
+					return Old(function()
+						return 1
+					end)
+				else
+					return Old(...)
+				end
+			end)
+		end
+	end, function()
+		Cleaner(LocalPlayer:GetAttributeChangedSignal("StaminaConsumeMultiplier"):Connect(function()
+			if G_Toggle("InfiniteStamina") then
+				if LocalPlayer:GetAttribute("StaminaConsumeMultiplier") ~= 0 then
+					LocalPlayer:SetAttribute("StaminaConsumeMultiplier", 0)
+				end
+			end
+		end))
+	end)
+
+	for _, Function in next, GameRegistry.log_fire do
+		HookMgr.RegisterHook("log_fire" .. tostring(Function), Function, function(Old, ...)
+
+			print("Gun log_fire function called with", ...)
+
+			-- local FireRateUpvalueIdx = 7
+			-- local GunUpvalueIdx = 10
+
+			-- table.foreach(debug.getupvalues(Function), print)
+
+			-- if G_Toggle("GunModificationEnabled") then
+			-- 	debug.setupvalue(Old, FireRateUpvalueIdx, G_Option("GunMods_FireRate") / 60)
+			-- else
+			-- 	debug.setupvalue(Old, FireRateUpvalueIdx, debug.getupvalue(Old, GunUpvalueIdx):GetAttribute("FireRate") / 60)
+			-- end
+
+			return Old(...)
+		end)
+	end
+
+	local function SignalYield(Signal: RBXScriptSignal, Times: number?, Callback: ((any) -> nil)?)
 		if not Times then
 			Times = 1
 		end
 
 		for _ = 0, Times :: number do
-
 			-- print("Yielding for signal", Signal, "for", Times, "times.")
 
 			if Callback then
@@ -1368,11 +1430,11 @@ local Success, Error = xpcall(function()
 		end
 	end
 
-	local function CharacterAdded(Character : Model)
-
+	local function CharacterAdded(Character: Model)
 		CharacterHooksInitialized = false
 
-		local BodyMoverConnection = ConnectionProxyMgr:YieldForConnection(Character.DescendantAdded, "PlayerWellbeing", 1)
+		local BodyMoverConnection =
+			ConnectionProxyMgr:YieldForConnection(Character.DescendantAdded, "PlayerWellbeing", 1)
 		dbgprint("BodyMoverConnection:", BodyMoverConnection)
 		if BodyMoverConnection then
 			ConnectionProxyMgr:Register(BodyMoverConnection):Disable()
@@ -1380,7 +1442,8 @@ local Success, Error = xpcall(function()
 
 		local UpperTorso = Character:WaitForChild("UpperTorso") :: Part
 
-		local NoclipSignal = ConnectionProxyMgr:YieldForConnection(UpperTorso:GetPropertyChangedSignal("CanCollide"), "Animate", 1)
+		local NoclipSignal =
+			ConnectionProxyMgr:YieldForConnection(UpperTorso:GetPropertyChangedSignal("CanCollide"), "Animate", 1)
 		dbgprint("NoclipConnection:", NoclipSignal)
 		if NoclipSignal then
 			ConnectionProxyMgr:Register(NoclipSignal):Disable()
@@ -1400,20 +1463,27 @@ local Success, Error = xpcall(function()
 			end
 		end))
 
+		Cleaner(Character.ChildAdded:Connect(function(Child: Instance)
+			if Child:HasTag("Gun") then
+				local Gun = Child :: Tool
+				RegisteredFirearms = {Gun}
+				SetGunFireRate(Gun)
+			end
+		end))
 	end
 
-	local function AssertCharacter() : Model
+	local function AssertCharacter(): Model
 		return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	end
 
 	local function GetAttributeByName(Instance, AttributeName)
 		local HashKey = workspace:GetAttribute("HashKey") or workspace:GetAttributeChangedSignal("HashKey"):Wait()
 		local Hash = 5381
-		
+
 		for i = 1, #AttributeName do
 			Hash = (Hash * 33 + string.byte(AttributeName, i)) % 4294967296
 		end
-		
+
 		local HashedName = HashKey .. tostring(Hash)
 		return Instance:GetAttribute(HashedName)
 	end
@@ -1421,11 +1491,11 @@ local Success, Error = xpcall(function()
 	local function SetAttributeByName(Instance, AttributeName, Value)
 		local HashKey = workspace:GetAttribute("HashKey") or workspace:GetAttributeChangedSignal("HashKey"):Wait()
 		local Hash = 5381
-		
+
 		for i = 1, #AttributeName do
 			Hash = (Hash * 33 + string.byte(AttributeName, i)) % 4294967296
 		end
-		
+
 		local HashedName = HashKey .. tostring(Hash)
 		Instance:SetAttribute(HashedName, Value)
 		return HashedName
@@ -1468,12 +1538,12 @@ local Success, Error = xpcall(function()
 	-- end)
 
 	HookMgr.RegisterHook("SilentAimHook", Gun.calculate_bullet_direction, function(Old, ...)
-
 		local Target = Aiming_Library.CurrentTarget
 
 		if Target and G_Toggle("SilentAimEnabled") then
 			dbgprint("hook stage 1", ...)
-			local HitPart : BasePart? = Target:FindFirstChild(G_Option("SilentAimPart")) or Target:FindFirstChild("HumanoidRootPart")
+			local HitPart: BasePart? = Target:FindFirstChild(G_Option("SilentAimPart"))
+				or Target:FindFirstChild("HumanoidRootPart")
 			if HitPart then
 				dbgprint("hook stage 2", ...)
 				local NewDirection = CFrame.new(Camera.CFrame.Position, HitPart.Position).LookVector
@@ -1485,16 +1555,16 @@ local Success, Error = xpcall(function()
 	end)
 
 	HookMgr.RegisterHook("PrimaryNamecallHook", HookMgr.GameMT.__namecall, function(Old, ...)
-
 		if not checkcaller() then
-			
 			local Method = getnamecallmethod()
 
-			if G_Toggle("GunModificationEnabled") or G_Toggle("MeleeModificationEnabled") and (Method == "GetAttribute") then
-
+			if
+				G_Toggle("GunModificationEnabled")
+				or G_Toggle("MeleeModificationEnabled") and (Method == "GetAttribute")
+			then
 				-- dbgprint("GetAttribute called with", ...)
 
-				local Args = {...}
+				local Args = { ... }
 				local AttributeName = Args[2]
 
 				for _, Attribute in next, Storage.Gun_Attributes do
@@ -1510,24 +1580,21 @@ local Success, Error = xpcall(function()
 						return G_Option("MeleeMods_" .. AttributeName)
 					end
 				end
-
 			end
-
 		end
 
 		return Old(...)
-
 	end)
 
 	HookMgr.RegisterHook("SkipCrateAnimationHook", Crate.spin, function(Old, ...)
 		if G_Toggle("SkipSpinAnimation") then
-			local Args = {...}
+			local Args = { ... }
 			local Reward = Args[2]
 
 			game:GetService("StarterGui"):SetCore("SendNotification", {
 				["Title"] = "Crate Reward",
 				["Text"] = Reward.amount .. " " .. Reward.name,
-				["Duration"] = 3
+				["Duration"] = 3,
 			})
 
 			return
@@ -1537,7 +1604,7 @@ local Success, Error = xpcall(function()
 
 	HookMgr.RegisterHook("WalkspeedHook", Sprint.set_walk_speed, function(Old, ...)
 		if G_Toggle("NoSlow") then
-			local Args = {...}
+			local Args = { ... }
 			if Args[1] < 8 then
 				return -- nuh uh
 			end
@@ -1547,7 +1614,7 @@ local Success, Error = xpcall(function()
 	end)
 
 	HookMgr.RegisterHook("MeleeHitRegHook", Melee.get_hit_players, function(Old, ...)
-		local Args = {...}
+		local Args = { ... }
 
 		local Tool = Args[1]
 		local Range = LocalPlayer.Character:FindFirstChildOfClass("Tool"):GetAttribute("Range") or 1
@@ -1557,7 +1624,6 @@ local Success, Error = xpcall(function()
 		end
 
 		if G_Toggle("MeleeRemoveConeCheck") then
-
 			local v35 = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
 			local v36 = v35.Position
 			local v39 = {}
@@ -1572,7 +1638,7 @@ local Success, Error = xpcall(function()
 				VisualizerPart.CanQuery = false
 				VisualizerPart.Anchored = true
 				VisualizerPart.Material = Enum.Material.ForceField
-				VisualizerPart.Color = Color3.new(1,0,0)
+				VisualizerPart.Color = Color3.new(1, 0, 0)
 				VisualizerPart.Transparency = 0.7
 				VisualizerPart.CFrame = v35.CFrame
 				VisualizerPart.Parent = workspace
@@ -1596,7 +1662,7 @@ local Success, Error = xpcall(function()
 			end
 
 			if VisualizerPart and #v39 > 0 then
-				VisualizerPart.Color = Color3.new(0,1,0)
+				VisualizerPart.Color = Color3.new(0, 1, 0)
 			end
 
 			return v39
@@ -1606,12 +1672,14 @@ local Success, Error = xpcall(function()
 	end)
 
 	HookMgr.RegisterHook("NetSendHook", Net.send, function(Old, ...)
-
 		if not checkcaller() then
-
-			local Args = {...}
+			local Args = { ... }
 
 			local Call_Type = Args[1]
+
+			if Storage.Blacklisted_Network_Calls[Call_Type] then
+				return 
+			end
 
 			if Call_Type == "melee_attack" and G_Toggle("MeleeFixHitchance") then
 				local Hits = Args[3]
@@ -1631,62 +1699,109 @@ local Success, Error = xpcall(function()
 
 				return Old(unpack(Args))
 			elseif Call_Type == "shoot_gun" and G_Toggle("SilentAimEnabled") then
-				local HitPart : BasePart?
+				local HitPart: BasePart?
 
 				if Aiming_Library.CurrentTarget then
-					HitPart = Aiming_Library.CurrentTarget:FindFirstChild(G_Option("SilentAimPart")) or Aiming_Library.CurrentTarget:FindFirstChild("HumanoidRootPart")
+					HitPart = Aiming_Library.CurrentTarget:FindFirstChild(G_Option("SilentAimPart"))
+						or Aiming_Library.CurrentTarget:FindFirstChild("HumanoidRootPart")
 					if HitPart then
 						Args[3] = CFrame.new(Camera.CFrame.Position, HitPart.Position)
 					end
 				end
 
 				return Old(unpack(Args))
-
 			end
-
 		end
 
 		return Old(...)
 	end)
 
+	local UsingPrompt = false
+
+	Cleaner(ProximityPromptService.PromptButtonHoldBegan:Connect(function(Prompt, Player)
+		if Player == LocalPlayer then -- redundant? not sure
+			UsingPrompt = true
+			dbgprint("using prompt")
+
+			if G_Toggle("PromptSkip") then
+				local Length = Prompt.HoldDuration
+				task.delay(Length * 0.82, function()
+					dbgprint("skipping prompt")
+					if UsingPrompt then
+						dbgprint("chesks passed")
+						fireproximityprompt(Prompt)
+					end
+				end)
+			end
+		end
+	end))
+
+	Cleaner(ProximityPromptService.PromptButtonHoldEnded:Connect(function(Prompt, Player)
+		if Player == LocalPlayer then
+			dbgprint("not using prompt")
+			UsingPrompt = false
+		end
+	end))
+
+	Cleaner(
+		RunService.PreRender:Connect(function()
+			if G_Toggle("Anonymizer") then
+				local Character = AssertCharacter()
+				local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") :: Part
+				local Name = HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
+				local Level = Name:WaitForChild("LevelImage"):WaitForChild("LevelText") :: TextLabel
+
+				local String = ""
+				for i = 12, 1, -1 do
+					String = String .. string.char(math.random(1, 127))
+				end
+				Name.Text = String
+
+				local LevelText = math.random(10, 99)
+				Level.Text = LevelText
+			end
+		end)
+	)
+
 	local CookFarmRoutine = coroutine.create(function()
-		local Prompt = WaitForTable(Tiles, {"ShoppingTile", "SteakHouse", "Interior", "Fridge", "Base", "Attachment", "ProximityPrompt"})
-		local Grill = WaitForTable(Tiles, {"ShoppingTile", "SteakHouse", "Interior", "Grill"})
+		local Prompt = WaitForTable(
+			Tiles,
+			{ "ShoppingTile", "SteakHouse", "Interior", "Fridge", "Base", "Attachment", "ProximityPrompt" }
+		)
+		local Grill = WaitForTable(Tiles, { "ShoppingTile", "SteakHouse", "Interior", "Grill" })
 
 		while task.wait(0.1) do
-
 			if not G_Toggle("CookFarm") then
 				continue
 			end
 
 			pcall(function()
-
+				print('getting steak')
 				fireproximityprompt(Prompt)
 
+				print('waiting for steak')
+				LocalPlayer.Backpack.ChildAdded:Wait()
+
+				print('disabling connections')
 				for Attribute, _ in next, Grill:GetAttributes() do
 					for _, v in next, getconnections(Grill:GetAttributeChangedSignal(Attribute)) do
 						v:Disable()
 					end
 				end
 
-				LocalPlayer.Backpack.ChildAdded:Wait()
-
+				print('starting grill')
 				Net.send("start_grilling", Grill)
 
 				task.wait(0.3)
 
 				local CookTime = GetAttributeByName(Grill, "perfect_cook_time") - 0.3 -- hashing attributes is LAME when u dont even secure ur alg
 
+				print('waiting for grill')
 				task.wait(CookTime)
 
-				Net.send(
-					"finish_grilling",
-					Grill,
-					"Perfect"
-				)
-			
+				print('finishing grill')
+				Net.send("finish_grilling", Grill, "Perfect")
 			end)
-
 		end
 	end)
 
@@ -1722,25 +1837,48 @@ local Success, Error = xpcall(function()
 		Title = "sasware blockspin",
 		Center = true,
 		AutoShow = true,
-		Footer = "Version: " .. Version .. " | " .. SubVersion
+		Footer = "Version: " .. Version .. " | " .. SubVersion,
 	})
-	
+
 	local Tabs = {
 		Main = Window:AddTab("Main"),
 		Automation = Window:AddTab("Automation"),
 		Combat = Window:AddTab("Combat"),
 		Visuals = Window:AddTab("Visuals"),
-		UISettings = Window:AddTab("UI Settings")
+		UISettings = Window:AddTab("UI Settings"),
 	}
 
 	-- Main tab
 
 	local UtilitiesGroup = Tabs.Main:AddLeftGroupbox("Utilities")
 
+	UtilitiesGroup:AddToggle("Anonymizer", {
+		Text = "Anonymize",
+		Default = false,
+		Tooltip = "Hides your name from the game",
+		Callback = function(Value)
+			if not Value then
+				local Character = AssertCharacter()
+				local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") :: Part
+				local Name = HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
+				local Level = Name:WaitForChild("LevelImage"):WaitForChild("LevelText") :: TextLabel
+
+				Name.Text = LocalPlayer.Name
+				Level.Text = tostring(LocalPlayer:GetAttribute("level"))
+			end
+		end
+	})
+	
 	UtilitiesGroup:AddToggle("SkipSpinAnimation", {
 		Text = "Skip Spin Animation",
 		Default = false,
-		Tooltip = "Skips the crate spin animation"
+		Tooltip = "Skips the crate spin animation",
+	})
+
+	UtilitiesGroup:AddToggle("PromptSkip", {
+		Text = "Faster Prompts",
+		Default = false,
+		Tooltip = "Makes prompts slightly faster.",
 	})
 
 	local CharacterGroup = Tabs.Main:AddRightGroupbox("Character")
@@ -1748,13 +1886,13 @@ local Success, Error = xpcall(function()
 	CharacterGroup:AddToggle("Noclip", {
 		Text = "Noclip",
 		Default = false,
-		Tooltip = "Enables noclip for the player"
+		Tooltip = "Enables noclip for the player",
 	})
 
 	CharacterGroup:AddToggle("NoSlow", {
 		Text = "No Slowdown",
 		Default = false,
-		Tooltip = "Disables slowdowns"
+		Tooltip = "Disables slowdowns",
 	})
 
 	CharacterGroup:AddToggle("InfiniteStamina", {
@@ -1769,7 +1907,7 @@ local Success, Error = xpcall(function()
 					LocalPlayer:SetAttribute("StaminaConsumeMultiplier", nil)
 				end
 			end
-		end
+		end,
 	})
 
 	CharacterGroup:AddSlider("SpeedBoost", {
@@ -1778,7 +1916,7 @@ local Success, Error = xpcall(function()
 		Min = 0,
 		Max = 2,
 		Rounding = 1,
-		Tooltip = "Sets the player speed"
+		Tooltip = "Sets the player speed",
 	})
 
 	local VulnerabilitiesGroup = Tabs.Main:AddLeftGroupbox("Vulnerabilities")
@@ -1789,7 +1927,8 @@ local Success, Error = xpcall(function()
 
 		if Airdrop then
 			local Character = AssertCharacter()
-			local Root = Airdrop:FindFirstChild("Weapon Crate"):FindFirstChild("Model"):FindFirstChild("BoxInteriorBottom")
+			local Root =
+				Airdrop:FindFirstChild("Weapon Crate"):FindFirstChild("Model"):FindFirstChild("BoxInteriorBottom")
 			local ProximityPrompt = Root:FindFirstChild("ProximityPrompt")
 
 			local OriginalPosition = Character:GetPivot()
@@ -1818,9 +1957,7 @@ local Success, Error = xpcall(function()
 
 			TPCon:Disconnect()
 			Character:PivotTo(OriginalPosition)
-
 		end
-
 	end)
 
 	VulnerabilitiesGroup:AddLabel("patched :(")
@@ -1832,7 +1969,7 @@ local Success, Error = xpcall(function()
 	AutomationGroup:AddToggle("CookFarm", {
 		Text = "Cook Farm",
 		Default = false,
-		Tooltip = "Automatically cooks food"
+		Tooltip = "Automatically cooks food",
 	})
 
 	AutomationGroup:AddLabel("YOU MUST BE STANDING NEAR FRIDGE AND ON THE JOB TO WORK", true)
@@ -1846,7 +1983,7 @@ local Success, Error = xpcall(function()
 	GunModificationsGroup:AddToggle("GunModificationEnabled", {
 		Text = "Enabled",
 		Default = false,
-		Tooltip = "Enables gun modification features"
+		Tooltip = "Enables gun modification features",
 	})
 
 	for _, Attribute in next, Storage.Gun_Attributes do
@@ -1857,41 +1994,47 @@ local Success, Error = xpcall(function()
 				Min = Attribute.Min,
 				Max = Attribute.Max,
 				Rounding = 2,
-				Tooltip = "Sets the " .. Attribute.Name .. " for guns"
+				Tooltip = "Sets the " .. Attribute.Name .. " for guns",
 			})
 		elseif Attribute.Type == "boolean" then
 			GunModificationsGroup:AddToggle("GunMods_" .. Attribute.Name, {
 				Text = Attribute.Name,
 				Default = false,
-				Tooltip = "Enables " .. Attribute.Name .. " for guns"
+				Tooltip = "Enables " .. Attribute.Name .. " for guns",
 			})
 		end
 	end
+
+	Library.Options.GunMods_FireRate:OnChanged(function(Value) -- im too lazy to make a better system for this
+		if RegisteredFirearms[1] then
+			SetGunFireRate(RegisteredFirearms[1])
+		end
+	end)
 
 	local MeleeModificationsGroup = Tabs.Combat:AddLeftGroupbox("Melee Mods")
 
 	MeleeModificationsGroup:AddToggle("MeleeFixHitchance", {
 		Text = "HitSync",
 		Default = false,
-		Tooltip = "game has bad hitreg so probably use this"
+		Tooltip = "game has bad hitreg so probably use this",
 	})
 
 	MeleeModificationsGroup:AddToggle("MeleeRemoveConeCheck", {
 		Text = "Radius-Only HitReg",
 		Default = false,
-		Tooltip = "Removes the cone check for melee weapons"
+		Tooltip = "Removes the cone check for melee weapons",
 	})
 
 	MeleeModificationsGroup:AddToggle("VisualizeMelee", {
 		Text = "Visualize Melee",
 		Default = false,
-		Tooltip = "Shows melee radius."
+		Tooltip = "Shows melee radius.",
 	})
 
 	MeleeModificationsGroup:AddToggle("MeleeModificationEnabled", {
 		Text = "Enabled",
 		Default = false,
-		Tooltip = "Enables melee modification features"
+		Tooltip = "Enables melee modification features",
 	})
 
 	for _, Attribute in next, Storage.Melee_Attributes do
@@ -1901,7 +2044,7 @@ local Success, Error = xpcall(function()
 			Min = Attribute.Min,
 			Max = Attribute.Max,
 			Rounding = 2,
-			Tooltip = "Sets the " .. Attribute.Name .. " for melee weapons"
+			Tooltip = "Sets the " .. Attribute.Name .. " for melee weapons",
 		})
 	end
 
@@ -1917,7 +2060,7 @@ local Success, Error = xpcall(function()
 			else
 				Aiming_Library.Enabled = false
 			end
-		end
+		end,
 	})
 
 	SilentAimGroup:AddSlider("SilentAimFOV", {
@@ -1929,14 +2072,14 @@ local Success, Error = xpcall(function()
 		Tooltip = "Sets the field of view for silent aim",
 		Callback = function(Value)
 			Aiming_Library.FOV = Value
-		end
+		end,
 	})
 
 	SilentAimGroup:AddDropdown("SilentAimPart", {
 		Text = "Part",
 		Default = "UpperTorso",
 		Values = { "HumanoidRootPart", "UpperTorso", "Head" },
-		Tooltip = "Sets the part to aim at"
+		Tooltip = "Sets the part to aim at",
 	})
 
 	-- Visuals tab
@@ -1949,7 +2092,7 @@ local Success, Error = xpcall(function()
 		Tooltip = "Enables ESP features",
 		Callback = function(Value)
 			ESP_Library.Config.Enabled = Value
-		end
+		end,
 	})
 
 	ESPGroup:AddSlider("ESPRange", {
@@ -1961,7 +2104,7 @@ local Success, Error = xpcall(function()
 		Tooltip = "Sets the maximum distance for ESP",
 		Callback = function(Value)
 			ESP_Library.Config.MaxDistance = Value
-		end
+		end,
 	})
 
 	ESPGroup:AddSlider("ESPFade", {
@@ -1973,7 +2116,7 @@ local Success, Error = xpcall(function()
 		Tooltip = "Sets the fade distance for ESP",
 		Callback = function(Value)
 			ESP_Library.Config.FadeDistance = Value
-		end
+		end,
 	})
 
 	ESPGroup:AddToggle("ESPPlayers", {
@@ -1982,16 +2125,16 @@ local Success, Error = xpcall(function()
 		Tooltip = "Shows ESP for players",
 		Callback = function(Value)
 			ESP_Library.Config.Players = Value
-		end
+		end,
 	})
 
 	ESPGroup:AddToggle("ESPBoxes", {
-		Text = "Boxes", 
+		Text = "Boxes",
 		Default = false,
 		Tooltip = "Shows boxes around players",
 		Callback = function(Value)
 			ESP_Library.Config.Boxes = Value
-		end
+		end,
 	})
 
 	ESPGroup:AddToggle("ESPText", {
@@ -2000,15 +2143,15 @@ local Success, Error = xpcall(function()
 		Tooltip = "Shows text labels for ESP",
 		Callback = function(Value)
 			ESP_Library.Config.Text = Value
-		end
+		end,
 	}):AddColorPicker("TextColor", {
 		Default = Color3.new(1, 1, 1),
 		Title = "Text Color",
 		Transparency = nil,
-	
+
 		Callback = function(Value)
 			ESP_Library.Config.TextColor = Value
-		end
+		end,
 	})
 
 	local MenuGroup = Tabs.UISettings:AddLeftGroupbox("Menu")
@@ -2061,13 +2204,13 @@ local Success, Error = xpcall(function()
 
 	if LocalPlayer.Character then
 		Cleaner(LocalPlayer.Character.ChildAdded:Connect(function(Child)
-			dbgprint(Child, 'added')
+			dbgprint(Child, "added")
 			if CollectionService:HasTag(Child, "Gun") then
 				CurrentGun:SetText("Current: " .. Child.Name)
 			end
 		end))
 		Cleaner(LocalPlayer.Character.ChildRemoved:Connect(function(Child)
-			dbgprint(Child, 'removed')
+			dbgprint(Child, "removed")
 			if CollectionService:HasTag(Child, "Gun") then
 				CurrentGun:SetText("Current: None")
 			end
@@ -2075,7 +2218,6 @@ local Success, Error = xpcall(function()
 	end
 
 	--#endregion
-
 end, function(Error)
 	warn("An error occurred during execution:", Error)
 	dbgprint(debug.traceback())
