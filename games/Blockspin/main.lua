@@ -1278,6 +1278,10 @@ local Success, Error = xpcall(function()
 			{ Name = "Range", Type = "number", Min = 1, Max = 20 },
 			-- {Name = "Speed", Type = "number", Min = 0.1, Max = 5}
 		},
+		Vehicle_Attributes = {
+			{ Name = "acceleration", Type = "number", Min = 5, Max = 100, DisplayName = "Acceleration" },
+			{ Name = "forwardMaxSpeed", Type = "number", Min = 5, Max = 120, DisplayName = "Max Speed"}
+		},
 		Blacklisted_Network_Calls = {
 			["replicate_billboard_gui"] = true,
 			["replicate_stamina_bar"] = true
@@ -1325,6 +1329,7 @@ local Success, Error = xpcall(function()
 	local ProximityPromptService = game:GetService("ProximityPromptService")
 	local CollectionService = game:GetService("CollectionService")
 	local LocalPlayer = Players.LocalPlayer
+	local LocalUserId = LocalPlayer.UserId
 	local Camera = workspace.CurrentCamera
 	local Debris = game:GetService("Debris")
 	local YieldBind = Instance.new("BindableEvent")
@@ -1343,6 +1348,7 @@ local Success, Error = xpcall(function()
 
 	local Map = workspace:WaitForChild("Map")
 	local Tiles = Map:WaitForChild("Tiles")
+	local Vehicles = workspace:WaitForChild("Vehicles")
 
 	Aiming_Library.Enabled = true
 	Aiming_Library.FOV = 60
@@ -1559,8 +1565,8 @@ local Success, Error = xpcall(function()
 			local Method = getnamecallmethod()
 
 			if
-				G_Toggle("GunModificationEnabled")
-				or G_Toggle("MeleeModificationEnabled") and (Method == "GetAttribute")
+				(G_Toggle("GunModificationEnabled") or G_Toggle("MeleeModificationEnabled") or G_Toggle("VehicleModificationEnabled"))
+				and (Method == "GetAttribute")
 			then
 				-- dbgprint("GetAttribute called with", ...)
 
@@ -1580,6 +1586,13 @@ local Success, Error = xpcall(function()
 						return G_Option("MeleeMods_" .. AttributeName)
 					end
 				end
+
+				for _, Attribute in next, Storage.Vehicle_Attributes do
+					if AttributeName == Attribute.Name and Attribute.Type == "number" then
+						return G_Option("VehicleMods_" .. AttributeName)
+					end
+				end
+
 			end
 		end
 
@@ -1961,6 +1974,34 @@ local Success, Error = xpcall(function()
 	end)
 
 	VulnerabilitiesGroup:AddLabel("patched :(")
+
+	local VehicleModificationsGroup = Tabs.Main:AddRightGroupbox("Vehicle Mods")
+
+	VehicleModificationsGroup:AddToggle("VehicleModificationEnabled", {
+		Text = "Enabled",
+		Default = false,
+		Tooltip = "Enables vehicle modification features",
+	})
+
+	for _, Attribute in next, Storage.Vehicle_Attributes do
+		if Attribute.Type == "number" then
+			VehicleModificationsGroup:AddSlider("VehicleMods_" .. Attribute.Name, {
+				Text = Attribute.DisplayName,
+				Default = Attribute.Min,
+				Min = Attribute.Min,
+				Max = Attribute.Max,
+				Rounding = 2,
+				Tooltip = "Sets the " .. Attribute.Name .. " for vehicles",
+				Callback = function(Value)
+					for _, Vehicle in next, Vehicles:GetChildren() do
+						if Vehicle:GetAttribute("OwnerUserId") == LocalUserId then
+							Vehicle.Motors:SetAttribute(Attribute.Name, Value)
+						end
+					end
+				end,
+			})
+		end
+	end
 
 	-- Automation tab
 
