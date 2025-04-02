@@ -2,6 +2,7 @@ local httprequest = (syn and syn.request) or (http and http.request) or http_req
 local TextChatService = game:GetService("TextChatService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local GuiService = game:GetService("GuiService")
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 local Players = game:GetService("Players")
@@ -51,20 +52,31 @@ end
 
 queue_on_teleport(game:HttpGet("https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/games/Blockspin/adbot.lua", true))
 
-while task.wait() do
-	local servers = {}
-	local req = httprequest({Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId)})
-	local body = HttpService:JSONDecode(req.Body)
+while task.wait(3) do
 
-	if body and body.data then
-		for i, v in next, body.data do
-			if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= JobId then
-				table.insert(servers, 1, v.id)
-			end
-		end
-	end
+    task.spawn(function()
+        pcall(function()
+            GuiService:ClearError()
+        end)
+    end)
 
-	if #servers > 0 then
-		TeleportService:TeleportToPlaceInstance(PlaceId, servers[math.random(1, #servers)], Players.LocalPlayer)
-	end
+    task.spawn(function()
+        pcall(function()
+            local servers = {}
+            local req = httprequest({Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId)})
+            local body = HttpService:JSONDecode(req.Body)
+
+            if body and body.data then
+                for i, v in next, body.data do
+                    if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= JobId then
+                        table.insert(servers, 1, v.id)
+                    end
+                end
+            end
+
+            if #servers > 0 then
+                TeleportService:TeleportToPlaceInstance(PlaceId, servers[math.random(1, #servers)], Players.LocalPlayer)
+            end
+        end)
+    end)
 end
