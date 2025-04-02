@@ -51,7 +51,7 @@ for i = math.random(2, 5), 0, -1 do
 end
 
 task.spawn(function()
-	queue_on_teleport(game:HttpGet(proxyUrlPrefix .. "https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/games/Blockspin/adbot.lua", true))
+	queue_on_teleport(game:HttpGet(proxyUrlPrefix .. "https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/games/Blockspin/adbot.lua", false))
 end)
 
 while task.wait(math.random(5, 10)) do
