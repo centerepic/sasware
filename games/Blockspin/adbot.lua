@@ -5,7 +5,7 @@ local ServerHop = {}
 do
     ServerHop._history = {}
     ServerHop._servers = {}
-    ServerHop._base_url = 'https://games.roblox.com/v1/games/%s/servers/public?cursor=%s&limit=100'
+    ServerHop._base_url = 'https://games.roproxy.com/v2/games/%s/servers/public?limit=100'
     ServerHop._cursor = ''
 
     function ServerHop:init()
@@ -29,20 +29,20 @@ do
         local success, result = pcall(game.HttpGet, game, string.format(self._base_url, game.PlaceId, self._cursor))
         if not success then
             warn(string.format('ServerHop:process_server_list success false Err(%s)', result))
-            task.wait(1)
+            task.wait(10)
             return self:process_server_list()
         end
 
         local success, decoded = pcall(HttpService.JSONDecode, HttpService, result)
         if not success then
             warn(string.format('ServerHop:process_server_list JSONDecode success false Err(%s)', result))
-            task.wait(1)
+            task.wait(10)
             return self:process_server_list()
         end
 
         if type(decoded.data) ~= 'table' then
             warn(string.format('ServerHop:process_server_list decoded.data invalid type (%s) resp(%s)', type(decoded.data), tostring(result)))
-            task.wait(1)
+            task.wait(10)
             return self:process_server_list()
         end
 
