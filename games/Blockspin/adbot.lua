@@ -1,11 +1,12 @@
 local TeleportService = cloneref(game:GetService('TeleportService'))
 local HttpService = cloneref(game:GetService('HttpService'))
+local request = http_request
 
 local ServerHop = {}
 do
     ServerHop._history = {}
     ServerHop._servers = {}
-    ServerHop._base_url = 'https://games.roproxy.com/v2/games/%s/servers/public?limit=100'
+    ServerHop._base_url = 'https://games.roblox.com/v1/games/%s/servers/public?sortOrder=Desc&limit=100&excludeFullGames=true'
     ServerHop._cursor = ''
 
     function ServerHop:init()
@@ -26,14 +27,14 @@ do
     end
 
     function ServerHop:process_server_list()
-        local success, result = pcall(game.HttpGet, game, string.format(self._base_url, game.PlaceId, self._cursor))
+        local success, result = pcall(request, {Url = string.format(self._base_url, game.PlaceId, self._cursor)})
         if not success then
             warn(string.format('ServerHop:process_server_list success false Err(%s)', result))
             task.wait(10)
             return self:process_server_list()
         end
 
-        local success, decoded = pcall(HttpService.JSONDecode, HttpService, result)
+        local success, decoded = pcall(HttpService.JSONDecode, HttpService, result.Body)
         if not success then
             warn(string.format('ServerHop:process_server_list JSONDecode success false Err(%s)', result))
             task.wait(10)
@@ -101,10 +102,6 @@ do
             return false, 'No servers left' 
         end
 
-        if Nexus then
-            Nexus:Log(string.format('Account[%s] AvailableServers[%d]', game.Players.LocalPlayer.Name, #available_servers))
-        end
-
         local server = table.remove(available_servers, math.random(1, #available_servers))
         return true, server
     end
@@ -121,13 +118,7 @@ do
     end
 end
 
-local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 local TextChatService = game:GetService("TextChatService")
-local HttpService = game:GetService("HttpService")
-local GuiService = game:GetService("GuiService")
-local PlaceId = game.PlaceId
-local JobId = game.JobId
-local Players = game:GetService("Players")
 
 local Messages = {
 	"saswaresoftworks is so pasted it made me crash my NEW WHIP! 🚗",
