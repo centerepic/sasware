@@ -3,6 +3,7 @@ local HttpService = cloneref(game:GetService('HttpService'))
 local proxyUrlPrefix = "http://127.0.0.1:1337/"
 local PlaceId, JobId = game.PlaceId, game.JobId
 local TextChatService = game:GetService("TextChatService")
+local WebhookURL = "https://discord.com/api/webhooks/1356844976927150130/2IRL-ptrWDWT4v8TqSbpWOyTnBu6Y2dTc4G-k5fCN_YbxppNRB46dqQnLs1YyTwMdTYl"
 
 local Messages = {
 	"saswaresoftworks is so pasted it made me crash my NEW WHIP! 🚗",
@@ -45,8 +46,26 @@ local RBXGeneral = TextChannels:WaitForChild("RBXGeneral")
 
 for i = math.random(2, 5), 0, -1 do
 	RBXGeneral:SendAsync(
-		`.\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r{Senders[math.random(1, #Senders)]}{Messages[math.random(1,#Messages)]}`
+		`.\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r{Senders[math.random(1, #Senders)]}{Messages[math.random(1, #Messages)]}`
 	)
+	
+	local data = {
+		["content"] = "Sent advertisement in JobId " .. JobId
+	}
+	
+	local jsonData = HttpService:JSONEncode(data)
+	
+	local headers = {
+		["content-type"] = "application/json"
+	}
+	
+	request({
+		Url = WebhookURL,
+		Method = "POST",
+		Headers = headers,
+		Body = jsonData
+	})
+	
 	task.wait(3)
 end
 
@@ -56,20 +75,23 @@ end)
 
 while task.wait(math.random(5, 10)) do
 	pcall(function()
-		local servers = {}
-        local req = http_request({Url = proxyUrlPrefix .. string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId)})
-        local body = HttpService:JSONDecode(req.Body)
+		task.spawn(function()
+			game:GetService("GuiService"):ClearError()
+			local servers = {}
+			local req = http_request({Url = proxyUrlPrefix .. string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId)})
+			local body = HttpService:JSONDecode(req.Body)
 
-        if body and body.data then
-            for i, v in next, body.data do
-                if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= JobId then
-                    table.insert(servers, 1, v.id)
-                end
-            end
-        end
+			if body and body.data then
+				for i, v in next, body.data do
+					if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= JobId then
+						table.insert(servers, 1, v.id)
+					end
+				end
+			end
 
-        if #servers > 0 then
-            TeleportService:TeleportToPlaceInstance(PlaceId, servers[math.random(1, #servers)], game.Players.LocalPlayer)
-        end
+			if #servers > 0 then
+				TeleportService:TeleportToPlaceInstance(PlaceId, servers[math.random(1, #servers)], game.Players.LocalPlayer)
+			end
+		end)
 	end)
 end
