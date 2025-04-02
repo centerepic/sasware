@@ -44,40 +44,43 @@ local Senders = {
 local TextChannels = TextChatService:WaitForChild("TextChannels")
 local RBXGeneral = TextChannels:WaitForChild("RBXGeneral")
 
-for i = math.random(2, 5), 0, -1 do
-	RBXGeneral:SendAsync(
-		`.\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r{Senders[math.random(1, #Senders)]}{Messages[math.random(1, #Messages)]}`
-	)
+task.spawn(function()
+	while task.wait(math.random(4,6)) do
 
-	task.spawn(function()
-		pcall(function()
-			local data = {
-				["content"] = "[v2] Sent advertisement in JobId " .. JobId
-			}
-			
-			local jsonData = HttpService:JSONEncode(data)
-			
-			local headers = {
-				["content-type"] = "application/json"
-			}
-			
-			request({
-				Url = WebhookURL,
-				Method = "POST",
-				Headers = headers,
-				Body = jsonData
-			})
+		RBXGeneral:SendAsync(
+			`.\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r{Senders[math.random(1, #Senders)]}{Messages[math.random(1, #Messages)]}`
+		)
+
+		task.spawn(function()
+			pcall(function()
+				local data = {
+					["content"] = "[v3] Sent advertisement in JobId " .. JobId
+				}
+				
+				local jsonData = HttpService:JSONEncode(data)
+				
+				local headers = {
+					["content-type"] = "application/json"
+				}
+				
+				request({
+					Url = WebhookURL,
+					Method = "POST",
+					Headers = headers,
+					Body = jsonData
+				})
+			end)
 		end)
-	end)
-	
-	task.wait(3)
-end
+		
+		task.wait(3)
+	end
+end)
 
 task.spawn(function()
 	queue_on_teleport(game:HttpGet(proxyUrlPrefix .. "https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/games/Blockspin/adbot.lua", false))
 end)
 
-while task.wait(math.random(5, 10)) do
+while task.wait(math.random(10, 15)) do
 	pcall(function()
 		task.spawn(function()
 			game:GetService("GuiService"):ClearError()
