@@ -1,126 +1,7 @@
 local TeleportService = cloneref(game:GetService('TeleportService'))
 local HttpService = cloneref(game:GetService('HttpService'))
-
 local proxyUrlPrefix = "http://127.0.0.1:1337/"
-
-local ServerHop = {}
-do
-	ServerHop._history = {}
-	ServerHop._servers = {}
-	ServerHop._base_url = 'https://games.roblox.com/v1/games/%s/servers/public?sortOrder=Desc&limit=100&excludeFullGames=true'
-	ServerHop._cursor = ''
-
-	function ServerHop:init()
-		self:load_history_from_cache()
-		self:load_server_list()
-	end
-
-	function ServerHop:load_history_from_cache()
-		if not TeleportService:GetTeleportSetting('RoBeats.ServerHistory') then
-			return
-		end
-		self._history = HttpService:JSONDecode(TeleportService:GetTeleportSetting('RoBeats.ServerHistory'))
-	end
-
-	function ServerHop:clear_server_history()
-		table.clear(self._history)
-		TeleportService:SetTeleportSetting('RoBeats.ServerHistory', HttpService:JSONEncode(self._history))
-	end
-
-	function ServerHop:process_server_list()
-		local url = string.format(self._base_url, game.PlaceId, self._cursor)
-		local success, result = pcall(function()
-			return game:HttpGet(proxyUrlPrefix .. url)
-		end)
-		if not success then
-			warn(string.format('ServerHop:process_server_list success false Err(%s)', result))
-			task.wait(10)
-			return self:process_server_list()
-		end
-
-		local success, decoded = pcall(HttpService.JSONDecode, HttpService, result)
-		if not success then
-			warn(string.format('ServerHop:process_server_list JSONDecode success false Err(%s)', result))
-			task.wait(10)
-			return self:process_server_list()
-		end
-
-		if type(decoded.data) ~= 'table' then
-			warn(string.format('ServerHop:process_server_list decoded.data invalid type (%s) resp(%s)', type(decoded.data), tostring(result)))
-			task.wait(10)
-			return self:process_server_list()
-		end
-
-		local function processServer(server)
-			if type(server.playing) ~= 'number' then return end 
-			if type(server.maxPlayers) ~= 'number' then return end 
-			if type(server.id) ~= 'string' then return end
-
-			table.insert(self._servers, server)
-		end
-
-		for _, server in decoded.data do
-			processServer(server)
-		end
-
-		if decoded.nextPageCursor == nil then
-			return self._servers
-		end
-
-		self._cursor = decoded.nextPageCursor
-		return self:process_server_list()
-	end
-
-	function ServerHop:load_server_list()
-		if isfile('server-list.json') then
-			local success, decoded = pcall(function()
-				return HttpService:JSONDecode(readfile('server-list.json'))
-			end)
-	
-			if success and decoded and decoded.servers and type(decoded.servers) == "table" and decoded.timestamp then
-				if os.time() - decoded.timestamp <= 120 then
-					self._servers = decoded.servers
-					return
-				end
-			end
-		end
-	
-		self:process_server_list()
-		writefile('server-list.json', HttpService:JSONEncode({
-			servers = self._servers,
-			timestamp = os.time()
-		}))
-	end
-	
-
-	function ServerHop:find_server()
-		local available_servers = table.clone(self._servers)
-		for i = #available_servers, 1, -1 do
-			local server = available_servers[i]
-			if table.find(self._history, server.id) then
-				table.remove(available_servers, i)
-			end
-		end
-
-		if #available_servers == 0 then
-			return false, 'No servers left' 
-		end
-
-		local server = table.remove(available_servers, math.random(1, #available_servers))
-		return true, server
-	end
-	
-	function ServerHop:teleport_to_server(server)
-		table.insert(self._history, server.id)
-		TeleportService:SetTeleportSetting('RoBeats.ServerHistory', HttpService:JSONEncode(self._history))
-		while true do
-			task.wait(1)
-			local sc, err = pcall(TeleportService.TeleportToPlaceInstance, TeleportService, game.PlaceId, server.id)
-			if sc then break end
-		end
-	end
-end
-
+local PlaceId, JobId = game.PlaceId, game.JobId
 local TextChatService = game:GetService("TextChatService")
 
 local Messages = {
@@ -166,12 +47,26 @@ for i = math.random(2, 5), 0, -1 do
 	task.wait(3)
 end
 
-queue_on_teleport(game:HttpGet(proxyUrlPrefix .. "https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/games/Blockspin/adbot.lua", true))
+task.spawn(function()
+	queue_on_teleport(game:HttpGet(proxyUrlPrefix .. "https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/games/Blockspin/adbot.lua", true))
+end)
 
 while task.wait(math.random(5, 10)) do
 	pcall(function()
-		ServerHop:init()
-		local paste, server = ServerHop:find_server()
-		ServerHop:teleport_to_server(server)
+		local servers = {}
+        local req = http_request({Url = proxyUrlPrefix .. string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId)})
+        local body = HttpService:JSONDecode(req.Body)
+
+        if body and body.data then
+            for i, v in next, body.data do
+                if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= JobId then
+                    table.insert(servers, 1, v.id)
+                end
+            end
+        end
+
+        if #servers > 0 then
+            TeleportService:TeleportToPlaceInstance(PlaceId, servers[math.random(1, #servers)], game.Players.LocalPlayer)
+        end
 	end)
 end
