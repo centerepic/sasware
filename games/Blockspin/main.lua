@@ -2,12 +2,12 @@
 --!nolint BuiltinGlobalWrite
 --!nolint UnknownGlobal
 
-local DEBUGGING = false
+local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.2.0"
-local SubVersion = " | BETA"
+local Version = "1.3.0"
+local SubVersion = "Release Candidate 1"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
@@ -463,6 +463,7 @@ do
 	local Players = game:GetService("Players")
 	local LocalPlayer = Players.LocalPlayer
 	local Camera = workspace.CurrentCamera
+	local CoreGui = game:GetService("CoreGui")
 
 	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 		Camera = workspace.CurrentCamera
@@ -470,19 +471,29 @@ do
 
 	local ESP = {
 		Config = {
+			UseDisplayName = true,
+			Highlights = true,
+			Glow = false,
 			Enabled = false,
 			TeamCheck = false,
 			Players = false,
 			Boxes = false,
 			Text = false,
-			BoxType = "3DFull",
+			BoxType = "2D",
 			BoxSize = Vector3.new(4, 6, 2),
-			StaticSize = Vector2.new(20, 60),
+			StaticSize = Vector2.new(40, 60),
 			BoxColor = Color3.fromRGB(255, 255, 255),
 			TextColor = Color3.fromRGB(255, 255, 255),
+			HighlightFillColor = Color3.fromRGB(255, 145, 20),
+			HighlightOutlineColor = Color3.fromRGB(255, 0, 0),
+			HighlightFillTransparency = 0.9,
+			HighlightOutlineTransparency = 0.5,
 			UseTeamColor = false,
 			MaxDistance = 500,
 			FadeDistance = 100,
+		},
+		Storage = {
+			Highlights = {},
 		},
 	}
 
@@ -492,22 +503,6 @@ do
 
 	local function Collect(Item: RBXScriptConnection | thread)
 		table.insert(Collection, Item)
-	end
-
-	local function Unload()
-		for _, Item in next, Collection do
-			if typeof(Item) == "RBXScriptConnection" then
-				Item:Disconnect()
-			end
-			if type(Item) == "thread" then
-				coroutine.close(Item)
-			end
-		end
-
-		for Index, Box in next, RenderQueue do
-			Box:Destroy()
-			RenderQueue[Index] = nil
-		end
 	end
 
 	local function Cleanup(Item: any)
@@ -534,6 +529,17 @@ do
 			Item:Remove()
 			return
 		end)
+	end
+
+	local function Unload()
+		for _, Item in next, Collection do
+			Cleanup(Item)
+		end
+
+		for Index, Box in next, RenderQueue do
+			Box:Destroy()
+			RenderQueue[Index] = nil
+		end
 	end
 
 	-- Function Setup
@@ -622,6 +628,10 @@ do
 			for Index, Value in Config do
 				Box[Index] = Value
 			end
+		end
+
+		if Box.IsPlayer then
+			Box.Player = GetPlayer(Box.Root.Parent)
 		end
 
 		Box.BoxColor = GetColor(Box.Root.Parent, Box)
@@ -834,7 +844,11 @@ do
 							self.TextObject.Size = 16
 
 							if self.Root and self.Root.Parent then
-								self.TextObject.Text = self.Root.Parent.Name or "Unknown"
+								if ESP.Config.UseDisplayName then
+									self.TextObject.Text = self.Player.DisplayName or "Unknown"
+								else
+									self.TextObject.Text = self.Root.Parent.Name or "Unknown"
+								end
 							else
 								self.TextObject.Text = "Unknown"
 							end
@@ -929,76 +943,129 @@ do
 		return Box
 	end
 
-	local function CreateESP(Player: Player, Config: { any }): { any }
-		local Character = Player.Character
+	local function AllocateHighlight(HighlightInstance: Highlight, Player: Player, Character: Model): { any }?
+		local HighlightObject = {
+			Highlight = HighlightInstance,
+			Player = Player,
+			Character = Character,
+		}
 
-		dbgprint("Creating ESP for player", Player)
+		function HighlightObject:Update()
+			if not ESP.Config.Highlights then
+				self.Highlight.Enabled = false
+				return
+			end
 
-		if not Character then
-			repeat
-				task.wait()
-			until Player.Character
-			Character = Player.Character
+			if not EnsureInstance(self.Character) then
+				self.Highlight.Enabled = false
+				return
+			end
+
+			if not ESP.Config.Enabled then
+				self.Highlight.Enabled = false
+				return
+			end
+
+			if ESP.Config.TeamCheck and self.Player.Team == LocalPlayer.Team then
+				self.Highlight.Enabled = false
+				return
+			end
+
+			self.Highlight.Enabled = true
+
+			local TransparencyMultiplier = CalculateTransparency(Distance(self.Character:GetPivot().Position))
+
+			self.Highlight.Adornee = self.Character
+			self.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			self.Highlight.FillColor = ESP.Config.HighlightFillColor
+			self.Highlight.OutlineColor = ESP.Config.HighlightOutlineColor
+			self.Highlight.FillTransparency = ESP.Config.HighlightFillTransparency + (1 - TransparencyMultiplier)
+			self.Highlight.OutlineTransparency = ESP.Config.HighlightOutlineTransparency + (1 - TransparencyMultiplier)
 		end
 
+		function HighlightObject:Destroy()
+			self.Destroyed = true
+
+			if self.Character then
+				self.Character = nil
+			end
+
+			self.Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+			self.Highlight.OutlineColor = Color3.fromRGB(0, 180, 0)
+			self.Highlight.FillTransparency = 1
+			self.Highlight.OutlineTransparency = 0
+			self.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			self.Highlight.Enabled = false
+		end
+
+		return HighlightObject
+	end
+
+	local function CreateESP(Player: Player, Config: { any }): { any }
+		dbgprint("Creating ESP for player", Player)
+		local Character = Player.Character or Player.CharacterAdded:Wait()
 		dbgprint("Character found for player", Player)
 
 		Character.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
 		local Box
 
-		local Humanoid = Character:WaitForChild("Humanoid") :: Humanoid
+		-- Create box for ESP visualization
+		local Root = Character:WaitForChild("HumanoidRootPart") :: Part
+		Box = CreateBox(Root, Config)
 
-		local OnDied
-		OnDied = function()
-			dbgprint("Recreating ESP for player", Player)
+		local HighlightObject = AllocateHighlight(Character:WaitForChild("Highlight"), Player, Character)
+		table.insert(RenderQueue, HighlightObject)
 
-			Humanoid = nil
+		-- Handle character changes
+		Player.CharacterAdded:Connect(function(NewCharacter: Model)
+			if NewCharacter ~= Character then
+				dbgprint("New character registered for player", Player)
+				Character = NewCharacter
+				Character.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
-			Box:Destroy()
-			Box = nil
+				if Box then
+					dbgprint("Destroying old box for player", Player)
+					Box:Destroy()
+					Box = nil
+				end
 
-			repeat
-				task.wait()
-				Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
-			until Player.Character and Humanoid and Humanoid.Health > 0
+				if HighlightObject then
+					dbgprint("Destroying old highlight for player", Player)
+					HighlightObject:Destroy()
+					HighlightObject = nil
+				end
 
-			dbgprint("Character re-found for player", Player)
+				HighlightObject = AllocateHighlight(Character:WaitForChild("Highlight"), Player, Character)
+				table.insert(RenderQueue, HighlightObject)
 
-			Box = CreateBox(Character:WaitForChild("HumanoidRootPart") :: Part, Config)
-			Box.IsPlayer = true
-
-			dbgprint("ESP recreated for player", Player)
-
-			task.spawn(function()
-				repeat
-					task.wait()
-				until Humanoid.Health <= 0
-				OnDied()
-			end)
-		end
-
-		task.spawn(function()
-			repeat
-				task.wait()
-			until Humanoid.Health <= 0
-			OnDied()
+				Box = CreateBox(Character:WaitForChild("HumanoidRootPart"), Config)
+			end
 		end)
 
-		local Root = Character:WaitForChild("HumanoidRootPart") :: Part
+		Player.CharacterRemoving:Connect(function()
+			if Box then
+				dbgprint("Destroying box for player", Player)
+				Box:Destroy()
+				HighlightObject:Destroy()
+				Box = nil
+			end
+		end)
 
-		Box = CreateBox(Root, Config)
-		Box.IsPlayer = true
-
-		dbgprint("ESP created for player", Player)
-
+		dbgprint("ESP registered for player", Player)
 		return Box
 	end
 
 	local function Update()
-		for _, Box in pairs(RenderQueue) do
+		for i, Item in pairs(RenderQueue) do
+			if Item.Destroyed then
+				dbgprint("Removing item from render queue:", i, Item)
+				RenderQueue[i] = nil
+				continue
+			end
+
 			pcall(function()
-				Box:Update()
+				Item:Update()
 			end)
 		end
 	end
@@ -1009,10 +1076,11 @@ do
 
 	Collect(RunService.RenderStepped:Connect(Update))
 
-	for _, Player in ipairs(Players:GetPlayers()) do
+	for _, Player in next, Players:GetPlayers() do
 		if Player ~= LocalPlayer then
-			task.defer(function()
-				local _ = CreateESP(Player, {
+			dbgprint("Player added [Deferred]:", Player.Name)
+			task.spawn(function()
+				CreateESP(Player, {
 					IsPlayer = true,
 					DynamicColor = function(Model: Model)
 						local Color = Color3.new(0, 0, 0)
@@ -1041,7 +1109,8 @@ do
 
 	Collect(Players.PlayerAdded:Connect(function(Player)
 		if Player ~= LocalPlayer then
-			local _ = CreateESP(Player, {
+			dbgprint("Player added:", Player.Name)
+			CreateESP(Player, {
 				IsPlayer = true,
 				DynamicColor = function(Model: Model)
 					local Color = Color3.new(0, 0, 0)
@@ -1087,6 +1156,7 @@ do
 	end)
 
 	local Aiming = {
+		HitChance = 100,
 		FOV = 60,
 		NPCs = false,
 		Players = true,
@@ -1237,6 +1307,12 @@ do
 		end
 	end)
 
+	function Aiming.ShouldMiss()
+		local HitChance = Aiming.HitChance / 100
+		local RandomValue = math.random(0, 100) / 100
+		return RandomValue > HitChance
+	end
+
 	local function Unload()
 		Connection:Disconnect()
 		FOVCircle:Remove()
@@ -1250,14 +1326,8 @@ end
 --#endregion
 
 --#region Main closure
-local Success, Error = xpcall(function()
+xpcall(function()
 	--#region Enviroment Scanning
-
-	local CharacterHooksInitialized = false
-
-	local HookTargets = {
-		"sprint_bar",
-	}
 
 	local GameRegistry = {
 		consume_stamina = {},
@@ -1324,7 +1394,6 @@ local Success, Error = xpcall(function()
 	local Players = game:GetService("Players")
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local RunService = game:GetService("RunService")
-	local UserInputService = game:GetService("UserInputService")
 	local ProximityPromptService = game:GetService("ProximityPromptService")
 	local CollectionService = game:GetService("CollectionService")
 	local LocalPlayer = Players.LocalPlayer
@@ -1428,24 +1497,24 @@ local Success, Error = xpcall(function()
 		end))
 	end)
 
-	for _, Function in next, GameRegistry.log_fire do
-		HookMgr.RegisterHook("log_fire" .. tostring(Function), Function, function(Old, ...)
-			print("Gun log_fire function called with", ...)
+	-- for _, Function in next, GameRegistry.log_fire do
+	-- 	HookMgr.RegisterHook("log_fire" .. tostring(Function), Function, function(Old, ...)
+	-- 		print("Gun log_fire function called with", ...)
 
-			-- local FireRateUpvalueIdx = 7
-			-- local GunUpvalueIdx = 10
+	-- 		-- local FireRateUpvalueIdx = 7
+	-- 		-- local GunUpvalueIdx = 10
 
-			-- table.foreach(debug.getupvalues(Function), print)
+	-- 		-- table.foreach(debug.getupvalues(Function), print)
 
-			-- if G_Toggle("GunModificationEnabled") then
-			-- 	debug.setupvalue(Old, FireRateUpvalueIdx, G_Option("GunMods_FireRate") / 60)
-			-- else
-			-- 	debug.setupvalue(Old, FireRateUpvalueIdx, debug.getupvalue(Old, GunUpvalueIdx):GetAttribute("FireRate") / 60)
-			-- end
+	-- 		-- if G_Toggle("GunModificationEnabled") then
+	-- 		-- 	debug.setupvalue(Old, FireRateUpvalueIdx, G_Option("GunMods_FireRate") / 60)
+	-- 		-- else
+	-- 		-- 	debug.setupvalue(Old, FireRateUpvalueIdx, debug.getupvalue(Old, GunUpvalueIdx):GetAttribute("FireRate") / 60)
+	-- 		-- end
 
-			return Old(...)
-		end)
-	end
+	-- 		return Old(...)
+	-- 	end)
+	-- end
 
 	local function SignalYield(Signal: RBXScriptSignal, Times: number?, Callback: ((any) -> nil)?)
 		if not Times then
@@ -1464,8 +1533,6 @@ local Success, Error = xpcall(function()
 	end
 
 	local function CharacterAdded(Character: Model)
-		CharacterHooksInitialized = false
-
 		local BodyMoverConnection =
 			ConnectionProxyMgr:YieldForConnection(Character.DescendantAdded, "PlayerWellbeing", 1)
 		dbgprint("BodyMoverConnection:", BodyMoverConnection)
@@ -1481,8 +1548,6 @@ local Success, Error = xpcall(function()
 		if NoclipSignal then
 			ConnectionProxyMgr:Register(NoclipSignal):Disable()
 		end
-
-		CharacterHooksInitialized = true
 
 		Cleaner(RunService.Stepped:Connect(function()
 			if G_Toggle("Noclip") then
@@ -1507,31 +1572,6 @@ local Success, Error = xpcall(function()
 
 	local function AssertCharacter(): Model
 		return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-	end
-
-	local function GetAttributeByName(Instance, AttributeName)
-		local HashKey = workspace:GetAttribute("HashKey") or workspace:GetAttributeChangedSignal("HashKey"):Wait()
-		local Hash = 5381
-
-		for i = 1, #AttributeName do
-			Hash = (Hash * 33 + string.byte(AttributeName, i)) % 4294967296
-		end
-
-		local HashedName = HashKey .. tostring(Hash)
-		return Instance:GetAttribute(HashedName)
-	end
-
-	local function SetAttributeByName(Instance, AttributeName, Value)
-		local HashKey = workspace:GetAttribute("HashKey") or workspace:GetAttributeChangedSignal("HashKey"):Wait()
-		local Hash = 5381
-
-		for i = 1, #AttributeName do
-			Hash = (Hash * 33 + string.byte(AttributeName, i)) % 4294967296
-		end
-
-		local HashedName = HashKey .. tostring(Hash)
-		Instance:SetAttribute(HashedName, Value)
-		return HashedName
 	end
 
 	local function WaitForTable(Root: Instance, InstancePath: { string }, Timeout: number?)
@@ -1560,16 +1600,6 @@ local Success, Error = xpcall(function()
 		CharacterAdded(LocalPlayer.Character)
 	end
 
-	-- HookMgr.RegisterHook("BulletHitLog", Gun.bullet_hit, function(Old, ...)
-	-- 	dbgprint("bullet_hit called with", ...)
-	-- 	return Old(...)
-	-- end)
-
-	-- HookMgr.RegisterHook("BulletTrailLog", Gun.bullet_trail, function(Old, ...)
-	-- 	dbgprint("bullet_trail called with", ...)
-	-- 	return Old(...)
-	-- end)
-
 	HookMgr.RegisterHook("SilentAimHook", Gun.calculate_bullet_direction, function(Old, ...)
 		local Target = Aiming_Library.CurrentTarget
 
@@ -1578,9 +1608,11 @@ local Success, Error = xpcall(function()
 			local HitPart: BasePart? = Target:FindFirstChild(G_Option("SilentAimPart"))
 				or Target:FindFirstChild("HumanoidRootPart")
 			if HitPart then
-				dbgprint("hook stage 2", ...)
-				local NewDirection = CFrame.new(Camera.CFrame.Position, HitPart.Position).LookVector
-				return NewDirection.Unit
+				if not Aiming_Library.ShouldMiss() then
+					dbgprint("hook stage 2", ...)
+					local NewDirection = CFrame.new(Camera.CFrame.Position, HitPart.Position).LookVector
+					return NewDirection.Unit
+				end
 			end
 		end
 
@@ -1657,7 +1689,6 @@ local Success, Error = xpcall(function()
 
 	HookMgr.RegisterHook("MeleeHitRegHook", Melee.get_hit_players, function(Old, ...)
 		local Args = { ... }
-
 		local Tool = Args[1]
 		local Range = LocalPlayer.Character:FindFirstChildOfClass("Tool"):GetAttribute("Range") or 1
 
@@ -1666,13 +1697,13 @@ local Success, Error = xpcall(function()
 		end
 
 		if G_Toggle("MeleeRemoveConeCheck") then
-			local v35 = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-			local v36 = v35.Position
-			local v39 = {}
+			local HumanoidRoot = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+			local HRPPosition = HumanoidRoot.Position
+			local HitPlayers = {}
 			local VisualizerPart
 
 			if G_Toggle("VisualizeMelee") then
-				VisualizerPart = Instance.new("Part") -- i stg if you add a detection for this im gonna kill you
+				VisualizerPart = Instance.new("Part")
 				VisualizerPart.Name = "OutdoorCeiling"
 				VisualizerPart.Shape = Enum.PartType.Ball
 				VisualizerPart.Size = Vector3.new(Range * 2, Range * 2, Range * 2)
@@ -1682,32 +1713,32 @@ local Success, Error = xpcall(function()
 				VisualizerPart.Material = Enum.Material.ForceField
 				VisualizerPart.Color = Color3.new(1, 0, 0)
 				VisualizerPart.Transparency = 0.7
-				VisualizerPart.CFrame = v35.CFrame
+				VisualizerPart.CFrame = HumanoidRoot.CFrame
 				VisualizerPart.Parent = workspace
 
 				Debris:AddItem(VisualizerPart, 0.5)
 			end
 
-			for _, v40 in Players:GetPlayers() do
-				if v40 ~= LocalPlayer then
-					local v41 = v40.Character
-					if v41 then
-						local v42 = v41:FindFirstChild("HumanoidRootPart")
-						local v43 = v41:FindFirstChildWhichIsA("Humanoid")
-						if v42 and (v43 and not v43:GetAttribute("IsDead")) then
-							if (v42.Position - v36).magnitude <= Range then
-								table.insert(v39, v40)
+			for Index, Player in next, Players:GetPlayers() do
+				if Player ~= LocalPlayer then
+					local Character = Player.Character
+					if Character then
+						local OtherHumanoidRoot = Character:FindFirstChild("HumanoidRootPart")
+						local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
+						if OtherHumanoidRoot and Humanoid and not Humanoid:GetAttribute("IsDead") then
+							if (OtherHumanoidRoot.Position - HRPPosition).magnitude <= Range then
+								table.insert(HitPlayers, Player)
 							end
 						end
 					end
 				end
 			end
 
-			if VisualizerPart and #v39 > 0 then
+			if VisualizerPart and #HitPlayers > 0 then
 				VisualizerPart.Color = Color3.new(0, 1, 0)
 			end
 
-			return v39
+			return HitPlayers
 		end
 
 		return Old(Tool)
@@ -1731,9 +1762,11 @@ local Success, Error = xpcall(function()
 				end
 
 				local OldPivot = LocalPlayer.Character:GetPivot()
+				local OldVelocity = LocalPlayer.Character.HumanoidRootPart.Velocity
 
 				SignalYield(RunService.Heartbeat, 2, function()
 					LocalPlayer.Character:PivotTo(Args[4])
+					LocalPlayer.Character.HumanoidRootPart.Velocity = OldVelocity
 					-- print("Pivoted to", Args[5], os.clock())
 				end)
 
@@ -1803,21 +1836,30 @@ local Success, Error = xpcall(function()
 		end
 	end))
 
+	Cleaner.CleanEvent.Event:Once(function()
+		local Character = AssertCharacter()
+		local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") :: Part
+		local Name = HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
+		local Level = Name:WaitForChild("LevelImage"):WaitForChild("LevelText") :: TextLabel
+
+		task.wait(0.1)
+
+		Name.Text = LocalPlayer.Name
+		Level.Text = tostring(LocalPlayer:GetAttribute("level")) or "0"
+	end)
+
 	local CookFarmRoutine = coroutine.create(function()
-		local FridgePrompt = WaitForTable(
-			workspace,
-			{
-				"Map",
-				"Tiles",
-				"ShoppingTile",
-				"SteakHouse",
-				"Interior",
-				"Fridge",
-				"Base",
-				"Attachment",
-				"ProximityPrompt",
-			}
-		)
+		local FridgePrompt = WaitForTable(workspace, {
+			"Map",
+			"Tiles",
+			"ShoppingTile",
+			"SteakHouse",
+			"Interior",
+			"Fridge",
+			"Base",
+			"Attachment",
+			"ProximityPrompt",
+		})
 
 		if not FridgePrompt then
 			warn("CookFarm: Could not find Fridge ProximityPrompt!")
@@ -2089,45 +2131,6 @@ local Success, Error = xpcall(function()
 
 	local VulnerabilitiesGroup = Tabs.Main:AddLeftGroupbox("Vulnerabilities")
 
-	VulnerabilitiesGroup:AddButton("Snipe Airdrop", function()
-		-- .AirDropModel["Weapon Crate"].Model.BoxInteriorBottom.ProximityPrompt
-		local Airdrop = workspace:FindFirstChild("AirDropModel")
-
-		if Airdrop then
-			local Character = AssertCharacter()
-			local Root =
-				Airdrop:FindFirstChild("Weapon Crate"):FindFirstChild("Model"):FindFirstChild("BoxInteriorBottom")
-			local ProximityPrompt = Root:FindFirstChild("ProximityPrompt")
-
-			local OriginalPosition = Character:GetPivot()
-
-			local TPCon = RunService.Heartbeat:Connect(function()
-				Character:PivotTo(Root.CFrame)
-			end)
-
-			task.wait(LocalPlayer:GetNetworkPing() + 0.3)
-
-			replicatesignal(ProximityPrompt.ButtonHoldEndedActionReplicated, LocalPlayer)
-
-			TPCon:Disconnect()
-
-			task.wait(ProximityPrompt.HoldDuration * 0.85)
-
-			TPCon = RunService.Heartbeat:Connect(function()
-				Character:PivotTo(Root.CFrame)
-			end)
-
-			task.wait(LocalPlayer:GetNetworkPing() + 0.3)
-
-			replicatesignal(ProximityPrompt.ButtonHoldEndedActionReplicated, LocalPlayer)
-			replicatesignal(ProximityPrompt.TriggeredActionReplicated, LocalPlayer)
-			replicatesignal(ProximityPrompt.TriggerEndedActionReplicated, LocalPlayer)
-
-			TPCon:Disconnect()
-			Character:PivotTo(OriginalPosition)
-		end
-	end)
-
 	VulnerabilitiesGroup:AddLabel("patched :(")
 
 	local VehicleModificationsGroup = Tabs.Main:AddRightGroupbox("Vehicle Mods")
@@ -2259,6 +2262,18 @@ local Success, Error = xpcall(function()
 		end,
 	})
 
+	SilentAimGroup:AddSlider("SilentAimHitChance", {
+		Text = "Hit Chance",
+		Default = 100,
+		Min = 0,
+		Max = 100,
+		Rounding = 0,
+		Tooltip = "Sets the hit chance for silent aim",
+		Callback = function(Value)
+			Aiming_Library.HitChance = Value
+		end,
+	})
+
 	SilentAimGroup:AddSlider("SilentAimFOV", {
 		Text = "FOV",
 		Default = 60,
@@ -2330,6 +2345,65 @@ local Success, Error = xpcall(function()
 		Tooltip = "Shows boxes around players",
 		Callback = function(Value)
 			ESP_Library.Config.Boxes = Value
+		end,
+	})
+
+	ESPGroup:AddDropdown("BoxType", {
+		Text = "Box Type",
+		Default = "2D",
+		Values = { "3DFull", "3D", "2D" },
+		Tooltip = "Sets the box type for ESP",
+		Callback = function(Value)
+			ESP_Library.Config.BoxType = Value
+		end,
+	})
+
+	ESPGroup:AddToggle("ESPHighlight", {
+		Text = "Highlight",
+		Default = true,
+		Tooltip = "Highlights players",
+		Callback = function(Value)
+			ESP_Library.Config.Highlights = Value
+		end,
+	})
+		:AddColorPicker("HighlightColor", {
+			Default = Color3.new(1.000000, 0.568627, 0.000000),
+			Title = "Highlight Fill Color",
+			Transparency = nil,
+			Callback = function(Value)
+				ESP_Library.Config.HighlightFillColor = Value
+			end,
+		})
+		:AddColorPicker("HighlightOutlineColor", {
+			Default = Color3.new(1.000000, 0.427451, 0.282353),
+			Title = "Highlight Outline Color",
+			Transparency = nil,
+			Callback = function(Value)
+				ESP_Library.Config.HighlightOutlineColor = Value
+			end,
+		})
+
+	ESPGroup:AddSlider("HighlightFillTransparency", {
+		Text = "Highlight Fill Transparency",
+		Default = 0.8,
+		Min = 0,
+		Max = 1,
+		Rounding = 2,
+		Tooltip = "Sets the fill transparency for highlights",
+		Callback = function(Value)
+			ESP_Library.Config.HighlightFillTransparency = Value
+		end,
+	})
+
+	ESPGroup:AddSlider("HighlightOutlineTransparency", {
+		Text = "Highlight Outline Transparency",
+		Default = 0.5,
+		Min = 0,
+		Max = 1,
+		Rounding = 2,
+		Tooltip = "Sets the outline transparency for highlights",
+		Callback = function(Value)
+			ESP_Library.Config.HighlightOutlineTransparency = Value
 		end,
 	})
 
