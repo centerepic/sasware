@@ -2,7 +2,7 @@
 --!nolint BuiltinGlobalWrite
 --!nolint UnknownGlobal
 
-local DEBUGGING = true
+local DEBUGGING = false
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
@@ -100,21 +100,21 @@ end
 
 local function dbgprint(...)
 	if DEBUGGING then
-		if USERCONSOLE then
-			rconsoleprint("[DEBUGGING] " .. table.concat(Stringify({ ... }), " "))
-		else
-			dbgprint("[DEBUGGING]", ...)
-		end
+		-- if USERCONSOLE then
+		-- 	rconsoleprint("[DEBUGGING] " .. table.concat(Stringify({ ... }), " "))
+		-- else
+		print("[DEBUGGING]", ...)
+		-- end
 	end
 end
 
 local function dbgwarn(...)
 	if DEBUGGING then
-		if USERCONSOLE then
-			rconsolewarn("[DEBUGGING] " .. table.concat(Stringify({ ... }), " "))
-		else
-			warn("[DEBUGGING]", ...)
-		end
+		-- if USERCONSOLE then
+		-- rconsolewarn("[DEBUGGING] " .. table.concat(Stringify({ ... }), " "))
+		-- else
+		warn("[DEBUGGING]", ...)
+		-- end
 	end
 end
 
@@ -1280,12 +1280,12 @@ local Success, Error = xpcall(function()
 		},
 		Vehicle_Attributes = {
 			{ Name = "acceleration", Type = "number", Min = 5, Max = 100, DisplayName = "Acceleration" },
-			{ Name = "forwardMaxSpeed", Type = "number", Min = 5, Max = 120, DisplayName = "Max Speed"}
+			{ Name = "forwardMaxSpeed", Type = "number", Min = 5, Max = 120, DisplayName = "Max Speed" },
 		},
 		Blacklisted_Network_Calls = {
 			["replicate_billboard_gui"] = true,
-			["replicate_stamina_bar"] = true
-		}
+			["replicate_stamina_bar"] = true,
+		},
 	}
 
 	if HOOKING_ENABLED then
@@ -1298,7 +1298,6 @@ local Success, Error = xpcall(function()
 					end
 				end)
 			elseif type(v) == "function" and islclosure(v) and (not isexecutorclosure(v)) then
-
 				if not debug.info(v, "s"):match("Gun") then
 					continue
 				end
@@ -1343,6 +1342,8 @@ local Success, Error = xpcall(function()
 	local Melee = require(Game.ItemTypes:WaitForChild("Melee"))
 	local Crate = require(Game.CrateSystem.Crate)
 	local Sprint = require(Game.Sprint)
+	local SteakHouseModule = require(Game.Jobs.SteakhouseCook)
+	local Char = require(ReplicatedStorage.Modules.Core.Char)
 
 	local RegisteredFirearms = {} -- hoodlumz with they registered firearmz (im losing it)
 
@@ -1358,7 +1359,7 @@ local Success, Error = xpcall(function()
 
 	--#region Defining game-related runtime constants / functions
 
-	local function SetGunFireRate(Gun : Tool)
+	local function SetGunFireRate(Gun: Tool)
 		local Rate = Gun:GetAttribute("FireRate") :: number
 		local Connections = getconnections(Gun.Equipped)
 		for _, Connection in next, Connections do
@@ -1367,10 +1368,37 @@ local Success, Error = xpcall(function()
 				if #Upvalues >= 15 then
 					print("Gun equipped function found @", Connection.Function)
 					local WaitFunction = debug.getupvalue(Connection.Function, 15)
-					debug.setupvalue(WaitFunction, 7, G_Option("GunMods_FireRate") and (60 / G_Option("GunMods_FireRate")) or (60 / Rate))
+					debug.setupvalue(
+						WaitFunction,
+						7,
+						G_Option("GunMods_FireRate") and (60 / G_Option("GunMods_FireRate")) or (60 / Rate)
+					)
 				end
 			end
 		end
+	end
+
+	local function HandleCoroutineWithTimeout(Coroutine: thread, Signal: BindableEvent, Timeout: number)
+		local Success = false
+		local Start = os.clock()
+		local Connection = Signal.Event:Once(function()
+			Success = true
+		end)
+
+		coroutine.resume(Coroutine)
+
+		while not Success do
+			if os.clock() - Start >= Timeout then
+				break
+			end
+			task.wait()
+		end
+
+		if Connection.Connected then
+			Connection:Disconnect()
+		end
+
+		return Success
 	end
 
 	HookSwitch(function()
@@ -1402,7 +1430,6 @@ local Success, Error = xpcall(function()
 
 	for _, Function in next, GameRegistry.log_fire do
 		HookMgr.RegisterHook("log_fire" .. tostring(Function), Function, function(Old, ...)
-
 			print("Gun log_fire function called with", ...)
 
 			-- local FireRateUpvalueIdx = 7
@@ -1472,7 +1499,7 @@ local Success, Error = xpcall(function()
 		Cleaner(Character.ChildAdded:Connect(function(Child: Instance)
 			if Child:HasTag("Gun") then
 				local Gun = Child :: Tool
-				RegisteredFirearms = {Gun}
+				RegisteredFirearms = { Gun }
 				SetGunFireRate(Gun)
 			end
 		end))
@@ -1565,8 +1592,11 @@ local Success, Error = xpcall(function()
 			local Method = getnamecallmethod()
 
 			if
-				(G_Toggle("GunModificationEnabled") or G_Toggle("MeleeModificationEnabled") or G_Toggle("VehicleModificationEnabled"))
-				and (Method == "GetAttribute")
+				(
+					G_Toggle("GunModificationEnabled")
+					or G_Toggle("MeleeModificationEnabled")
+					or G_Toggle("VehicleModificationEnabled")
+				) and (Method == "GetAttribute")
 			then
 				-- dbgprint("GetAttribute called with", ...)
 
@@ -1592,7 +1622,6 @@ local Success, Error = xpcall(function()
 						return G_Option("VehicleMods_" .. AttributeName)
 					end
 				end
-
 			end
 		end
 
@@ -1691,7 +1720,7 @@ local Success, Error = xpcall(function()
 			local Call_Type = Args[1]
 
 			if Storage.Blacklisted_Network_Calls[Call_Type] then
-				return 
+				return
 			end
 
 			if Call_Type == "melee_attack" and G_Toggle("MeleeFixHitchance") then
@@ -1756,65 +1785,190 @@ local Success, Error = xpcall(function()
 		end
 	end))
 
-	Cleaner(
-		RunService.PreRender:Connect(function()
-			if G_Toggle("Anonymizer") then
-				local Character = AssertCharacter()
-				local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") :: Part
-				local Name = HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
-				local Level = Name:WaitForChild("LevelImage"):WaitForChild("LevelText") :: TextLabel
+	Cleaner(RunService.PreRender:Connect(function()
+		if G_Toggle("Anonymizer") then
+			local Character = AssertCharacter()
+			local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") :: Part
+			local Name = HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
+			local Level = Name:WaitForChild("LevelImage"):WaitForChild("LevelText") :: TextLabel
 
-				local String = ""
-				for i = 12, 1, -1 do
-					String = String .. string.char(math.random(1, 127))
-				end
-				Name.Text = String
-
-				local LevelText = math.random(10, 99)
-				Level.Text = LevelText
+			local String = ""
+			for i = 12, 1, -1 do
+				String = String .. string.char(math.random(1, 127))
 			end
-		end)
-	)
+			Name.Text = String
+
+			local LevelText = math.random(10, 99)
+			Level.Text = LevelText
+		end
+	end))
 
 	local CookFarmRoutine = coroutine.create(function()
-		local Prompt = WaitForTable(
-			Tiles,
-			{ "ShoppingTile", "SteakHouse", "Interior", "Fridge", "Base", "Attachment", "ProximityPrompt" }
+		local FridgePrompt = WaitForTable(
+			workspace,
+			{
+				"Map",
+				"Tiles",
+				"ShoppingTile",
+				"SteakHouse",
+				"Interior",
+				"Fridge",
+				"Base",
+				"Attachment",
+				"ProximityPrompt",
+			}
 		)
-		local Grill = WaitForTable(Tiles, { "ShoppingTile", "SteakHouse", "Interior", "Grill" })
 
-		while task.wait(0.1) do
+		if not FridgePrompt then
+			warn("CookFarm: Could not find Fridge ProximityPrompt!")
+			return
+		end
+
+		local function GetAvailableGrillObject()
+			local AvailableGrills = {}
+			if SteakHouseModule and SteakHouseModule.grill_class and SteakHouseModule.grill_class.objects then
+				for _, GrillObject in pairs(SteakHouseModule.grill_class.objects) do
+					if GrillObject.states.user_id_assigned.get() == 0 then
+						table.insert(AvailableGrills, GrillObject)
+					end
+				end
+			else
+				dbgprint("CookFarm: SteakHouseModule or grill_class not ready yet.")
+				return nil
+			end
+
+			if #AvailableGrills > 0 then
+				if #AvailableGrills == 1 then
+					return AvailableGrills[1]
+				end
+
+				local Character = AssertCharacter()
+				local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+				if not HumanoidRootPart then
+					return AvailableGrills[1]
+				end
+
+				local PlayerPosition = HumanoidRootPart.Position
+				local ClosestGrill = AvailableGrills[1]
+				local ClosestDistance = math.huge
+
+				for _, Grill in next, AvailableGrills do
+					if Grill.instance then
+						local Success, Distance = pcall(function()
+							return (Grill.instance.Position - PlayerPosition).Magnitude
+						end)
+
+						if Success and Distance and Distance < ClosestDistance then
+							ClosestDistance = Distance
+							ClosestGrill = Grill
+						end
+					end
+				end
+
+				dbgprint("Found closest grill, distance:", ClosestDistance < math.huge and ClosestDistance or "unknown")
+				return ClosestGrill
+			end
+			return nil
+		end
+
+		while task.wait(0.2) do
 			if not G_Toggle("CookFarm") then
 				continue
 			end
 
-			pcall(function()
-				print('getting steak')
-				fireproximityprompt(Prompt)
+			if LocalPlayer:GetAttribute("Job") ~= "steakhouse_cook" then
+				dbgprint("CookFarm: Player is not a steakhouse cook. Stopping.")
+				task.wait(5)
+				continue
+			end
 
-				print('waiting for steak')
-				LocalPlayer.Backpack.ChildAdded:Wait()
+			local Success, Error = pcall(function()
+				local HeldTool = Char.held_tool.get()
+				local HasSteak = HeldTool and HeldTool:GetAttribute("IsCookable") == true
 
-				print('disabling connections')
-				for Attribute, _ in next, Grill:GetAttributes() do
-					for _, v in next, getconnections(Grill:GetAttributeChangedSignal(Attribute)) do
-						v:Disable()
-					end
+				if not HasSteak then
+					dbgprint("Getting steak")
+					fireproximityprompt(FridgePrompt)
+
+					local StartTime = os.clock()
+					repeat
+						task.wait(0.1)
+						HeldTool = Char.held_tool.get()
+						HasSteak = HeldTool and HeldTool:GetAttribute("IsCookable") == true
+						if os.clock() - StartTime > 5 then
+							error("Failed to get steak within 5 seconds")
+						end
+					until HasSteak
+					dbgprint("Got steak:", HeldTool and HeldTool.Name or "Unknown")
+				else
+					dbgprint("Already holding a cookable item:", HeldTool.Name)
 				end
 
-				print('starting grill')
-				Net.send("start_grilling", Grill)
+				local TargetGrillObject = nil
+				local FindStartTime = os.clock()
+				repeat
+					TargetGrillObject = GetAvailableGrillObject()
+					if TargetGrillObject then
+						break
+					end
+					dbgprint("Waiting for an available grill...")
+					task.wait(0.5)
+					if os.clock() - FindStartTime > 15 then
+						error("Could not find an available grill within 15 seconds")
+					end
+				until TargetGrillObject
 
-				task.wait(0.3)
+				if not TargetGrillObject or not TargetGrillObject.instance then
+					error("Failed to get a valid grill object or instance")
+				end
 
-				local CookTime = GetAttributeByName(Grill, "perfect_cook_time") - 0.3 -- hashing attributes is LAME when u dont even secure ur alg
+				local GrillInstance = TargetGrillObject.instance
+				dbgprint("Found available grill:", GrillInstance.Name)
 
-				print('waiting for grill')
+				dbgprint("Starting grill process for:", GrillInstance.Name)
+				Net.send("start_grilling", GrillInstance)
+
+				local PerfectTime = 0
+				local WaitStartTime = os.clock()
+				dbgprint("Waiting for grill state updates...")
+				repeat
+					task.wait(0.1)
+
+					if TargetGrillObject.states.user_id_assigned.get() == LocalUserId then
+						PerfectTime = TargetGrillObject.states.perfect_cook_time.get()
+						dbgprint("Grill assigned, Perfect Time:", PerfectTime)
+					end
+
+					if os.clock() - WaitStartTime > 10 then
+						LocalPlayer.Character.Humanoid:UnequipTools()
+						error(
+							"Grill state did not update (assignment/time) within 10 seconds (this is bad contact sashaa)"
+						)
+					end
+				until PerfectTime > 0
+
+				dbgprint("Grill assigned to user. PerfectTime:", PerfectTime)
+
+				local CookTime = PerfectTime - 0.2
+				if CookTime < 0.1 then
+					CookTime = 0.1
+				end
+
+				print("Calculated CookTime:", CookTime, "(Perfect:", PerfectTime, ")")
+				dbgprint("Waiting for cook duration:", CookTime)
 				task.wait(CookTime)
 
-				print('finishing grill')
-				Net.send("finish_grilling", Grill, "Perfect")
+				dbgprint("Finishing grill:", GrillInstance.Name)
+				Net.send("finish_grilling", GrillInstance, "Perfect")
+
+				dbgprint("Cooked steak successfully on", GrillInstance.Name)
 			end)
+
+			if not Success then
+				warn("CookFarm Error: ", Error)
+				LocalPlayer.Character.Humanoid:UnequipTools()
+				task.wait(2)
+			end
 		end
 	end)
 
@@ -1873,15 +2027,16 @@ local Success, Error = xpcall(function()
 			if not Value then
 				local Character = AssertCharacter()
 				local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") :: Part
-				local Name = HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
+				local Name =
+					HumanoidRootPart:WaitForChild("CharacterBillboardGui"):WaitForChild("PlayerName") :: TextLabel
 				local Level = Name:WaitForChild("LevelImage"):WaitForChild("LevelText") :: TextLabel
 
 				Name.Text = LocalPlayer.Name
 				Level.Text = tostring(LocalPlayer:GetAttribute("level"))
 			end
-		end
+		end,
 	})
-	
+
 	UtilitiesGroup:AddToggle("SkipSpinAnimation", {
 		Text = "Skip Spin Animation",
 		Default = false,
