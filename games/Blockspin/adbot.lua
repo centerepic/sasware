@@ -40,8 +40,11 @@ local Senders = {
 	"[JackCinnamon]: ",
 }
 
+local TextChannels = TextChatService:WaitForChild("TextChannels")
+local RBXGeneral = TextChannels:WaitForChild("RBXGeneral")
+
 for i = math.random(2, 5), 0, -1 do
-	TextChatService.TextChannels.RBXGeneral:SendAsync(
+	RBXGeneral:SendAsync(
 		`.\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r{Senders[math.random(1, #Senders)]}{Messages[math.random(1,#Messages)]}`
 	)
 	task.wait(3)
