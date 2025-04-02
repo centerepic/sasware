@@ -48,23 +48,27 @@ for i = math.random(2, 5), 0, -1 do
 	RBXGeneral:SendAsync(
 		`.\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r{Senders[math.random(1, #Senders)]}{Messages[math.random(1, #Messages)]}`
 	)
-	
-	local data = {
-		["content"] = "Sent advertisement in JobId " .. JobId
-	}
-	
-	local jsonData = HttpService:JSONEncode(data)
-	
-	local headers = {
-		["content-type"] = "application/json"
-	}
-	
-	request({
-		Url = WebhookURL,
-		Method = "POST",
-		Headers = headers,
-		Body = jsonData
-	})
+
+	task.spawn(function()
+		pcall(function()
+			local data = {
+				["content"] = "[v2] Sent advertisement in JobId " .. JobId
+			}
+			
+			local jsonData = HttpService:JSONEncode(data)
+			
+			local headers = {
+				["content-type"] = "application/json"
+			}
+			
+			request({
+				Url = WebhookURL,
+				Method = "POST",
+				Headers = headers,
+				Body = jsonData
+			})
+		end)
+	end)
 	
 	task.wait(3)
 end
