@@ -2,7 +2,7 @@
 --!nolint BuiltinGlobalWrite
 --!nolint UnknownGlobal
 
-local DEBUGGING = true
+local DEBUGGING = false
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
