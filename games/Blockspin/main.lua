@@ -6,8 +6,8 @@ local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.3.0"
-local SubVersion = "Release Candidate 1"
+local Version = "1.3.1"
+local SubVersion = "Release Candidate 2"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
