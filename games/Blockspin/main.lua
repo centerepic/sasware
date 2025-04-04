@@ -2,7 +2,7 @@
 --!nolint BuiltinGlobalWrite
 --!nolint UnknownGlobal
 
-local DEBUGGING = false
+local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
@@ -474,6 +474,8 @@ do
 			UseDisplayName = true,
 			Highlights = true,
 			Glow = false,
+			Arrows = false,
+			Tracers = false,
 			Enabled = false,
 			TeamCheck = false,
 			Players = false,
@@ -484,6 +486,7 @@ do
 			StaticSize = Vector2.new(40, 60),
 			BoxColor = Color3.fromRGB(255, 255, 255),
 			TextColor = Color3.fromRGB(255, 255, 255),
+			TracerColor = Color3.fromRGB(255, 255, 255),
 			HighlightFillColor = Color3.fromRGB(255, 145, 20),
 			HighlightOutlineColor = Color3.fromRGB(255, 0, 0),
 			HighlightFillTransparency = 0.9,
@@ -1001,6 +1004,76 @@ do
 		return HighlightObject
 	end
 
+	local function CreateTracer3D(Origin: BasePart, TargetPart: Part)
+		local Line = Drawing.new("Line")
+
+		local TracerObject = {
+			Line = Line,
+			Origin = Origin.Position,
+			Target = TargetPart.Position,
+		}
+
+		function TracerObject:Update()
+
+			if not ESP.Config.Enabled then
+				self.Line.Visible = false
+				-- dbgprint("ESP disabled")
+				return
+			end
+
+			if not ESP.Config.Tracers then
+				self.Line.Visible = false
+				-- dbgprint("Tracer disabled")
+				return
+			end
+
+			if TargetPart and EnsureInstance(TargetPart) then
+				self.Target = TargetPart.Position
+			else
+				-- print("Target part is not valid:", TargetPart)
+				self.Line.Visible = false
+				return
+			end
+
+			if Origin and EnsureInstance(Origin) then
+				self.Origin = Origin.Position
+			else
+				-- print("Origin part is not valid:", Origin)
+				self.Line.Visible = false
+				return
+			end
+
+			local Distance = Distance(self.Target)
+
+			if Distance > ESP.Config.MaxDistance then
+				self.Line.Visible = false
+				return
+			end
+
+			local ScreenPos, _ = WTVP(self.Target)
+
+			if ScreenPos.Z < 0 then
+				self.Line.Visible = false
+				return
+			end
+
+			self.Line.Visible = true
+			self.Line.Transparency = CalculateTransparency(Distance * 2)
+			self.Line.Thickness = math.clamp(5 - Distance / 100, 1, 5)
+			self.Line.Color = ESP.Config.TracerColor
+			self.Line.From = WTVP2D(self.Origin)
+			self.Line.To = WTVP2D(self.Target)
+		end
+
+		function TracerObject:Destroy()
+			self.Destroyed = true
+			self.Line:Remove()
+			self.Line = nil
+		end
+
+		return TracerObject
+	end
+
 	local function CreateESP(Player: Player, Config: { any }): { any }
 		dbgprint("Creating ESP for player", Player)
 		local Character = Player.Character or Player.CharacterAdded:Wait()
@@ -1016,6 +1089,9 @@ do
 
 		local HighlightObject = AllocateHighlight(Character:WaitForChild("Highlight"), Player, Character)
 		table.insert(RenderQueue, HighlightObject)
+
+		local TracerObject = CreateTracer3D(LocalPlayer.Character.HumanoidRootPart, Root)
+		table.insert(RenderQueue, TracerObject)
 
 		-- Handle character changes
 		Player.CharacterAdded:Connect(function(NewCharacter: Model)
@@ -1036,6 +1112,13 @@ do
 					HighlightObject = nil
 				end
 
+				if TracerObject then
+					dbgprint("Destroying old tracer for player", Player)
+					TracerObject:Destroy()
+					TracerObject = nil
+				end
+
+				TracerObject = CreateTracer3D(LocalPlayer.Character.HumanoidRootPart, NewCharacter:WaitForChild("HumanoidRootPart") :: Part)
 				HighlightObject = AllocateHighlight(Character:WaitForChild("Highlight"), Player, Character)
 				table.insert(RenderQueue, HighlightObject)
 
@@ -1396,6 +1479,7 @@ xpcall(function()
 	local RunService = game:GetService("RunService")
 	local ProximityPromptService = game:GetService("ProximityPromptService")
 	local CollectionService = game:GetService("CollectionService")
+	local TweenService = game:GetService("TweenService")
 	local LocalPlayer = Players.LocalPlayer
 	local LocalUserId = LocalPlayer.UserId
 	local Camera = workspace.CurrentCamera
@@ -1849,17 +1933,23 @@ xpcall(function()
 	end)
 
 	local CookFarmRoutine = coroutine.create(function()
-		local FridgePrompt = WaitForTable(workspace, {
+
+		local Fridge = WaitForTable(workspace, {
 			"Map",
 			"Tiles",
 			"ShoppingTile",
 			"SteakHouse",
 			"Interior",
 			"Fridge",
-			"Base",
-			"Attachment",
-			"ProximityPrompt",
 		})
+
+		local FridgePrompt
+
+		for _, Child in next, Fridge:GetChildren() do
+			if Child.Name == "Base" and Child:FindFirstChildOfClass("Attachment") then
+				FridgePrompt = Child:FindFirstChildOfClass("Attachment"):FindFirstChildOfClass("ProximityPrompt")
+			end
+		end
 
 		if not FridgePrompt then
 			warn("CookFarm: Could not find Fridge ProximityPrompt!")
@@ -1897,7 +1987,7 @@ xpcall(function()
 				for _, Grill in next, AvailableGrills do
 					if Grill.instance then
 						local Success, Distance = pcall(function()
-							return (Grill.instance.Position - PlayerPosition).Magnitude
+							return (Grill.instance:GetPivot().Position - PlayerPosition).Magnitude
 						end)
 
 						if Success and Distance and Distance < ClosestDistance then
@@ -1964,6 +2054,13 @@ xpcall(function()
 					error("Failed to get a valid grill object or instance")
 				end
 
+				local SelectedGrillHighlight = Instance.new("Highlight", TargetGrillObject.instance)
+				SelectedGrillHighlight.FillColor = Color3.fromRGB(255, 255, 0)
+				SelectedGrillHighlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+				Debris:AddItem(SelectedGrillHighlight, 5)
+				TweenService:Create(SelectedGrillHighlight, TweenInfo.new(3), { FillTransparency = 1}):Play()
+				TweenService:Create(SelectedGrillHighlight, TweenInfo.new(5), { OutlineTransparency = 1}):Play()
+
 				local GrillInstance = TargetGrillObject.instance
 				dbgprint("Found available grill:", GrillInstance.Name)
 
@@ -1979,6 +2076,10 @@ xpcall(function()
 					if TargetGrillObject.states.user_id_assigned.get() == LocalUserId then
 						PerfectTime = TargetGrillObject.states.perfect_cook_time.get()
 						dbgprint("Grill assigned, Perfect Time:", PerfectTime)
+						pcall(function()
+							SelectedGrillHighlight.FillColor = Color3.fromRGB(0, 255, 0)
+							SelectedGrillHighlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+						end)
 					end
 
 					if os.clock() - WaitStartTime > 10 then
@@ -2355,6 +2456,22 @@ xpcall(function()
 		Tooltip = "Sets the box type for ESP",
 		Callback = function(Value)
 			ESP_Library.Config.BoxType = Value
+		end,
+	})
+
+	ESPGroup:AddToggle("ESPTracers", {
+		Text = "Tracers",
+		Default = false,
+		Tooltip = "Shows tracers to players",
+		Callback = function(Value)
+			ESP_Library.Config.Tracers = Value
+		end,
+	}):AddColorPicker("TracerColor", {
+		Default = Color3.new(1, 1, 1),
+		Title = "Tracer Color",
+		Transparency = nil,
+		Callback = function(Value)
+			ESP_Library.Config.TracerColor = Value
 		end,
 	})
 
