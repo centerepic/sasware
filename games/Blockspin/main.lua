@@ -7,7 +7,7 @@ local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
 local Version = "1.3.1"
-local SubVersion = "Release Candidate 2"
+local SubVersion = "Release Candidate 3"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
@@ -307,8 +307,19 @@ setmetatable(Cleaner, {
 
 local HookMgr = {
 	Registry = {},
-	GameMT = getrawmetatable(game),
+	GameMT = {
+		__namecall = function(self, ...)
+		end,
+		__index = function(self, Index: string)
+		end,
+		__newindex = function(self, Index: string, Value: any)
+		end,
+	},
 }
+
+if getrawmetatable then
+	HookMgr.GameMT = getrawmetatable(game)
+end
 
 HookMgr.RegisterHook = function(
 	HookName: string,
@@ -1521,6 +1532,13 @@ xpcall(function()
 	local Modules = ReplicatedStorage:WaitForChild("Modules")
 	local Core = Modules:WaitForChild("Core")
 	local Game = Modules:WaitForChild("Game")
+
+	xpcall(function()
+		require(Core:WaitForChild("Net") :: ModuleScript)
+	end,
+		function()
+		messagebox("Your executor does not support require. Please try a better one... Swift is free!", "Execution Error", 0)
+	end)
 
 	local Net = require(Core:WaitForChild("Net"))
 	local Gun = require(Game.ItemTypes:WaitForChild("Gun"))
