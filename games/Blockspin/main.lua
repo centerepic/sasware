@@ -22,6 +22,38 @@ if USERCONSOLE then
 	rconsolecreate()
 end
 
+-- hi cro i added this for a lil bit to see how many people are using my script no im not doxxing you
+-- im just too poor for a proper setup
+-- this will be removed shortly
+
+task.spawn(function()
+  pcall(function()
+
+local HttpService = game:GetService('HttpService')
+local WebhookURL = "https://discord.com/api/webhooks/1359725155399630969/4elmQeEoLOgJ-aW1P1Clpj2G2fWa7FEiAgMpgUHOCWtqnHVFWxYprViJrY9L4JnudiJH"
+local exec_info = {identifyexecutor()}
+exec_info = table.concat(exec_info, " ")
+
+local data = {
+    ["content"] = `sasware blockspin execution log\nVersion: {Version} {SubVersion}\nExecutor: {exec_info}\nUsername: {game.Players.LocalPlayer.Name}`
+}
+
+local jsonData = HttpService:JSONEncode(data)
+
+local headers = {
+    ["content-type"] = "application/json"
+}
+
+request({
+    Url = WebhookURL,
+    Method = "POST",
+    Headers = headers,
+    Body = jsonData
+})
+
+  end)
+end)
+
 --#region Initializing core functionality
 
 -- Generates a unique hook ID for hooks with same name
