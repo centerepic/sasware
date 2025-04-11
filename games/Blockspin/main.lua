@@ -7,7 +7,7 @@ local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
 local Version = "1.3.2"
-local SubVersion = "Release Candidate 4"
+local SubVersion = "Final Free"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
@@ -41,7 +41,7 @@ pcall(function()
 			Version = Version,
 			SubVersion = SubVersion,
 			Executor = ExecutorData,
-			UserID = LocalPlayer.UserId
+			UserID = game.Players.LocalPlayer.UserId
 		}),
 	})
 
