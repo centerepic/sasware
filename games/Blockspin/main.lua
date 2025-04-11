@@ -6,8 +6,8 @@ local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.3.1"
-local SubVersion = "Release Candidate 3"
+local Version = "1.3.2"
+local SubVersion = "Release Candidate 4"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
@@ -26,32 +26,25 @@ end
 -- im just too poor for a proper setup
 -- this will be removed shortly
 
-task.spawn(function()
-  pcall(function()
+pcall(function()
 
-local HttpService = game:GetService('HttpService')
-local WebhookURL = "https://discord.com/api/webhooks/1359725155399630969/4elmQeEoLOgJ-aW1P1Clpj2G2fWa7FEiAgMpgUHOCWtqnHVFWxYprViJrY9L4JnudiJH"
-local exec_info = {identifyexecutor()}
-exec_info = table.concat(exec_info, " ")
+	local Exec, Version = identifyexecutor()
+	local ExecutorData = table.concat({ Exec, Version }, " ")
 
-local data = {
-    ["content"] = `sasware blockspin execution log\nVersion: {Version} {SubVersion}\nExecutor: {exec_info}\nUsername: {game.Players.LocalPlayer.Name}`
-}
+	request({
+		Url = "https://www.upio.dev/api/logs/sasware/blockspin",
+		Method = "POST",
+		Headers = {
+			["Content-Type"] = "application/json",
+		},
+		Body = game:GetService("HttpService"):JSONEncode({
+			Version = Version,
+			SubVersion = SubVersion,
+			Executor = ExecutorData,
+			UserID = LocalPlayer.UserId
+		}),
+	})
 
-local jsonData = HttpService:JSONEncode(data)
-
-local headers = {
-    ["content-type"] = "application/json"
-}
-
-request({
-    Url = WebhookURL,
-    Method = "POST",
-    Headers = headers,
-    Body = jsonData
-})
-
-  end)
 end)
 
 --#region Initializing core functionality
