@@ -6,8 +6,8 @@ local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.3.2"
-local SubVersion = "Final Free"
+local Version = "1.3.3"
+local SubVersion = "zFixLogs_Free"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
@@ -28,8 +28,8 @@ end
 
 pcall(function()
 
-	local Exec, Version = identifyexecutor()
-	local ExecutorData = table.concat({ Exec, Version }, " ")
+	local Exec, ExecVersion = identifyexecutor()
+	local ExecutorData = table.concat({ Exec, ExecVersion }, " ")
 
 	request({
 		Url = "https://www.upio.dev/api/logs/sasware/blockspin",
