@@ -1,3 +1,5 @@
+print("sasware loader v2 initializing...")
+
 local HttpService = game:GetService("HttpService")
 local Url = "https://raw.githubusercontent.com/centerepic/sasware/refs/heads/main/index.json"
 
@@ -14,7 +16,7 @@ if Success then
         print("Loading Script For Game ID:", PlaceId)
         
         local ScriptSuccess, ScriptResponse = pcall(function()
-            return game:HttpGet(ScriptUrl)
+            return game:HttpGet(ScriptUrl .. "?t=" .. tostring(tick()))
         end)
         
         if ScriptSuccess then
