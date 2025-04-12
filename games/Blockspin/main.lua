@@ -6,8 +6,8 @@ local DEBUGGING = true
 local USERCONSOLE = true
 local HOOKING_ENABLED = true
 
-local Version = "1.3.4"
-local SubVersion = "zUltimatum_Free"
+local Version = "1.3.5"
+local SubVersion = "zDetectionFix_Free"
 local HIDN = 0
 
 _G.__HOOK_KEY = ""
@@ -2010,8 +2010,8 @@ xpcall(function()
 			{ Name = "forwardMaxSpeed", Type = "number", Min = 5, Max = 120, DisplayName = "Max Speed" },
 		},
 		Blacklisted_Network_Calls = {
-			["replicate_billboard_gui"] = true,
-			["replicate_stamina_bar"] = true,
+			["replicate_billboard_gui_1"] = true,
+			["replicate_stamina_bar_1"] = true,
 		},
 	}
 
@@ -2646,7 +2646,7 @@ xpcall(function()
 				dbgprint("Found available grill:", GrillInstance.Name)
 
 				dbgprint("Starting grill process for:", GrillInstance.Name)
-				Net.send("start_grilling", GrillInstance)
+				Net.send("start_grilling_2", GrillInstance)
 
 				local PerfectTime = 0
 				local WaitStartTime = os.clock()
@@ -2683,7 +2683,7 @@ xpcall(function()
 				task.wait(CookTime)
 
 				dbgprint("Finishing grill:", GrillInstance.Name)
-				Net.send("finish_grilling", GrillInstance, "Perfect")
+				Net.send("finish_grilling_2", GrillInstance, "Perfect")
 
 				dbgprint("Cooked steak successfully on", GrillInstance.Name)
 			end)
