@@ -790,9 +790,11 @@ Collect(AutofarmCoroutine)
 local KillAuraCoroutine = coroutine.create(function()
     while task.wait(.5) do
         if Toggles.KillAuraEnabled.Value and LocalPlayer.Character then
+            print('kainit')
             if not (LocalPlayer.Character:FindFirstChild("ServerMeleeModel")) then
                 continue
             end
+            print('kainit2')
 
             local Range = Options.KillAuraRange.Value
             local TargetPart = Options.KillAuraParts.Value
@@ -839,7 +841,7 @@ local KillAuraCoroutine = coroutine.create(function()
                 -- end
 
                 for _, NPC in next, CollectionService:GetTagged("NPC") do
-                    if NPC:IsDescendantOf(workspace) and NPC:IsA("Model") and NPC:FindFirstChild("HumanoidRootPart") and CollectionService:HasTag(NPC, "ActiveCharacter") then
+                    if NPC:IsDescendantOf(workspace) and NPC:IsA("Model") and NPC:FindFirstChild("HumanoidRootPart") and (CollectionService:HasTag(NPC, "ActiveCharacter") or game.PlaceId == Nightbound) then
                         table.insert(FilteredNPCs, NPC)
                     end
                 end
