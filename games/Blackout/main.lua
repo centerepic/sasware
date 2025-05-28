@@ -846,10 +846,12 @@ local KillAuraCoroutine = coroutine.create(function()
                     end
                 end
 
-                local Arena = workspace:FindFirstChild("Arena") :: Model
-                for _, Child in next, Arena:GetChildren() do
-                    if Child:FindFirstChildOfClass("Humanoid") and not Child:GetAttribute("Downed") then
-                        table.insert(FilteredNPCs, Child)
+                if game.PlaceId ~= Nightbound then
+                    local Arena = workspace:FindFirstChild("Arena") :: Model
+                    for _, Child in next, Arena:GetChildren() do
+                        if Child:FindFirstChildOfClass("Humanoid") and not Child:GetAttribute("Downed") then
+                            table.insert(FilteredNPCs, Child)
+                        end
                     end
                 end
 
