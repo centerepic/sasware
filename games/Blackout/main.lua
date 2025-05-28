@@ -22,6 +22,8 @@ local Library = loadstring(game:HttpGet(Repository .. "Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(Repository .. "addons/ThemeManager.lua"))()
 local SaveManager = loadstring(game:HttpGet(Repository .. "addons/SaveManager.lua"))()
 
+local Nightbound = 137064773215574
+
 local ESP = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
 local VelocityFly = loadstring(game:HttpGet("https://raw.githubusercontent.com/centerepic/VelocityFly/main/VelocityFly.lua"))()
 local Aiming = loadstring(game:HttpGet("https://raw.githubusercontent.com/centerepic/sasware_blackout/main/aiming_lib.lua"))()
@@ -45,8 +47,10 @@ local TeleportLocations = {
 
 local TeleportLocations_DropDownValues = {}
 
-for Location, _ in next, TeleportLocations do
-    table.insert(TeleportLocations_DropDownValues, Location)
+if game.PlaceId ~= Nightbound then
+    for Location, _ in next, TeleportLocations do
+        table.insert(TeleportLocations_DropDownValues, Location)
+    end
 end
 
 local Collection = {}
@@ -60,7 +64,10 @@ local MSPS = 90
 
 local NPCs = workspace:WaitForChild("NPCs")
 local Characters = workspace:WaitForChild("Chars")
-local Terminals = workspace:WaitForChild("Terminals")
+local Terminals = Instance.new("Folder")
+if game.PlaceId ~= Nightbound then
+    Terminals = workspace:WaitForChild("Terminals")
+end
 local FastCast = require(ReplicatedStorage.Mods.FastCast)
 
 local Remotes = {
